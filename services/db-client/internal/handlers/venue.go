@@ -57,18 +57,3 @@ func (h *VenueHandler) GetByID(w http.ResponseWriter, r *http.Request) {
     w.Header().Set("Content-Type", "application/json")
     json.NewEncoder(w).Encode(venue)
 }
-
-
-
-
-
-// func (h *VenueHandler) GetAllVenues(w http.ResponseWriter, r *http.Request) {
-// 	venues, err := h.db.QueryAllVenues()
-// 	if err != nil {
-// 		w.WriteHeader(http.StatusInternalServerError)
-// 		w.Write([]byte("Unexpected error"))
-// 		fmt.Println("Error occured querying all venues: ", err.Error())
-// 	}
-
-// 	fmt.Println(venues)
-// }
