@@ -5,17 +5,16 @@ import (
     "fmt"
     "net/http" 
 	"get-places-data/internal/models"
-	"os"
 )
 
-func GetBarInfoHandler(w http.ResponseWriter, r *http.Request) {
+func (env *APIEnv) GetBarInfoHandler(w http.ResponseWriter, r *http.Request) {
 	id := r.URL.Query().Get("id")
 	if id == "" {
 		http.Error(w, "Missing place ID", http.StatusBadRequest)
 		return
 	}
 
-	barRecord, err := getBarInfo(id, os.Getenv("GOOGLE_API_KEY"))
+	barRecord, err := getBarInfo(id, env.GoogleAPIKey)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

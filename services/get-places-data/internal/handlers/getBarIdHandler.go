@@ -5,17 +5,16 @@ import (
 	"encoding/json"
 	"net/http"
 	"get-places-data/internal/models"
-	"os"
 )
 
-func GetBarIdsHandler(w http.ResponseWriter, r *http.Request) {
+func (env *APIEnv) GetBarIdsHandler(w http.ResponseWriter, r *http.Request) {
 	name := r.URL.Query().Get("name")
 	if name == "" {
 		http.Error(w, "Missing search query", http.StatusBadRequest)
 		return
 	}
 
-	results, err := getBarIds(name, os.Getenv("GOOGLE_API_KEY"))
+	results, err := getBarIds(name, env.GoogleAPIKey)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

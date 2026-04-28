@@ -9,10 +9,15 @@ import (
 
 
 func main() {    
-    // Basic sanity check, exit immediately if api key is not present 
-    if key := os.Getenv("GOOGLE_API_KEY"); key == "" {
+    // Basic sanity check, exit immediately if api key is not present
+	apiKey := os.Getenv("GOOGLE_API_KEY")
+    if apiKey == "" {
         panic("Failed to load api key")
     }
+
+	env := &handlers.APIEnv{
+		GoogleAPIKey: apiKey,
+	}
 
     // Default to 8080
 	port := os.Getenv("PORT")
@@ -22,8 +27,8 @@ func main() {
 
     // Bind handlers
     mux := http.NewServeMux()
-	mux.HandleFunc("/barids", handlers.GetBarIdsHandler)
-    mux.HandleFunc("/barinfo", handlers.GetBarInfoHandler)
+	mux.HandleFunc("/barids", env.GetBarIdsHandler)
+    mux.HandleFunc("/barinfo", env.GetBarInfoHandler)
     mux.HandleFunc("/health", handlers.Health)
 
     srv := &http.Server{
