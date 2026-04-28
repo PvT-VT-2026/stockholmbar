@@ -1,6 +1,6 @@
 # Get places data
 
-This service acts as a proxy for the Google Places API. It exposes two endpoints. One is for searching for bars using text like names or/and a address, which returns a list of all found ids. The other endpoint takes a id and returns data about the place identified by the id.
+This service acts as a proxy for the Google Places API. It exposes two endpoints. One is for searching for places using text like names and/or an address, which returns a list of all found places. The other endpoint takes an ID and returns detailed data about the place identified by that ID.
 
 ## Build
 
