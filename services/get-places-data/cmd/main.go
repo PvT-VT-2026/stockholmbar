@@ -27,8 +27,8 @@ func main() {
 
     // Bind handlers
     mux := http.NewServeMux()
-	mux.HandleFunc("/barids", env.GetBarIdsHandler)
-    mux.HandleFunc("/barinfo", env.GetBarInfoHandler)
+	mux.HandleFunc("/findplace", env.GetPlaceIdsHandler)
+    mux.HandleFunc("/placeinfo", env.GetPlaceInfoHandler)
     mux.HandleFunc("/health", handlers.Health)
 
     srv := &http.Server{

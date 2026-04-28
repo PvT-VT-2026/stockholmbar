@@ -7,24 +7,24 @@ import (
 	"get-places-data/internal/models"
 )
 
-func (env *APIEnv) GetBarInfoHandler(w http.ResponseWriter, r *http.Request) {
+func (env *APIEnv) GetPlaceInfoHandler(w http.ResponseWriter, r *http.Request) {
 	id := r.URL.Query().Get("id")
 	if id == "" {
 		http.Error(w, "Missing place ID", http.StatusBadRequest)
 		return
 	}
 
-	barRecord, err := getBarInfo(id, env.GoogleAPIKey)
+	placeInfo, err := getPlaceInfo(id, env.GoogleAPIKey)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(barRecord)
+	json.NewEncoder(w).Encode(placeInfo)
 }
 
-func getBarInfo(placeID string, apiKey string) (*models.BarInfo, error) {
+func getPlaceInfo(placeID string, apiKey string) (*models.PlaceInfo, error) {
 	client := &http.Client{}
 	detailsURL := fmt.Sprintf("https://places.googleapis.com/v1/places/%s", placeID)
 
@@ -47,11 +47,11 @@ func getBarInfo(placeID string, apiKey string) (*models.BarInfo, error) {
 		return nil, err
 	}
 
-	return formatBarInfo(details, placeID), nil
+	return formatPlaceInfo(details, placeID), nil
 }
 
-func formatBarInfo(details models.PlaceDetailsResponse, placeID string) *models.BarInfo {
-	barInfo := &models.BarInfo{
+func formatPlaceInfo(details models.PlaceDetailsResponse, placeID string) *models.PlaceInfo {
+	placeInfo := &models.PlaceInfo{
 		PlaceID:      placeID,
 		Name:         details.DisplayName.Text,
 		Lat:          details.Location.Latitude,
@@ -64,26 +64,26 @@ func formatBarInfo(details models.PlaceDetailsResponse, placeID string) *models.
 		for _, t := range comp.Types {
 			switch t {
 			case "route":
-				if barInfo.Street == "" {
-                	barInfo.Street = comp.LongText
+				if placeInfo.Street == "" {
+                	placeInfo.Street = comp.LongText
 				} else {
-                	barInfo.Street = comp.LongText + " " + barInfo.Street
+                	placeInfo.Street = comp.LongText + " " + placeInfo.Street
 				}	
 			case "street_number":
-				barInfo.Street += " " + comp.LongText
+				placeInfo.Street += " " + comp.LongText
 			case "postal_town":
-				barInfo.City = comp.LongText
+				placeInfo.City = comp.LongText
 			case "sublocality_level_1":
-				barInfo.Area = comp.LongText
+				placeInfo.Area = comp.LongText
 			case "postal_code":
-				barInfo.Zip = comp.LongText
+				placeInfo.Zip = comp.LongText
 			case "country":
-				barInfo.Country = comp.LongText
+				placeInfo.Country = comp.LongText
 			}
 		}
 	}
 
-	return barInfo
+	return placeInfo
 }
 
 

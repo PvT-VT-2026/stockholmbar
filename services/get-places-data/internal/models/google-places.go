@@ -40,7 +40,7 @@ type PlaceDetailsResponse struct {
 	} `json:"regularOpeningHours"`
 }
 
-type BarInfo struct {
+type PlaceInfo struct {
 	PlaceID      string  `json:"place_id"`
 	Name         string  `json:"name"`
 	Street       string  `json:"street"`

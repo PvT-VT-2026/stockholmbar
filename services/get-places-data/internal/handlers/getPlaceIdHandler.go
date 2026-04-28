@@ -7,14 +7,14 @@ import (
 	"get-places-data/internal/models"
 )
 
-func (env *APIEnv) GetBarIdsHandler(w http.ResponseWriter, r *http.Request) {
+func (env *APIEnv) GetPlaceIdsHandler(w http.ResponseWriter, r *http.Request) {
 	name := r.URL.Query().Get("name")
 	if name == "" {
 		http.Error(w, "Missing search query", http.StatusBadRequest)
 		return
 	}
 
-	results, err := getBarIds(name, env.GoogleAPIKey)
+	results, err := getPlaceIds(name, env.GoogleAPIKey)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -24,7 +24,7 @@ func (env *APIEnv) GetBarIdsHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(results)
 }
 
-func getBarIds(name string, apiKey string) ([]models.SearchResultItem, error) {
+func getPlaceIds(name string, apiKey string) ([]models.SearchResultItem, error) {
 	client := &http.Client{}
 	searchURL := "https://places.googleapis.com/v1/places:searchText"
 
