@@ -22,6 +22,7 @@ func main() {
 
     // Bind handlers
     mux := http.NewServeMux()
+	mux.HandleFunc("/barids", handlers.GetBarIdsHandler)
     mux.HandleFunc("/barinfo", handlers.GetBarInfoHandler)
     mux.HandleFunc("/health", handlers.Health)
 

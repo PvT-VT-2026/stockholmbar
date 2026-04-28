@@ -7,15 +7,25 @@ type PlaceSearchRequest struct {
 type PlaceSearchResponse struct {
 	Places []struct {
 		Id string `json:"id"`
+		DisplayName struct {
+			Text string `json:"text"`
+		} `json:"displayName"`
+		FormattedAddress string `json:"formattedAddress"`
 	} `json:"places"`
 }
 
+type SearchResultItem struct {
+	ID      string `json:"id"`
+	Name    string `json:"name"`
+	Address string `json:"address"`
+}
+
 type PlaceDetailsResponse struct {
-	Id          string `json:"id"`
+	Id string `json:"id"`
 	DisplayName struct {
 		Text string `json:"text"`
 	} `json:"displayName"`
-	Rating              float64 `json:"rating"`
+	Rating float64 `json:"rating"`
 	Location struct {
 		Latitude  float64 `json:"latitude"`
 		Longitude float64 `json:"longitude"`
@@ -31,15 +41,16 @@ type PlaceDetailsResponse struct {
 }
 
 type BarInfo struct {
-	PlaceID string  `json:"place_id"`
-	Name    string  `json:"name"`
-	Street  string  `json:"street"`
-	Area    string  `json:"area"`
-	City    string  `json:"city"`
-	Country string  `json:"country"`
-	Zip     string  `json:"zip"`
-	Lat     float64 `json:"lat"`
-	Lng     float64 `json:"lng"`
+	PlaceID      string  `json:"place_id"`
+	Name         string  `json:"name"`
+	Street       string  `json:"street"`
+	Area         string  `json:"area"`
+	City         string  `json:"city"`
+	Country      string  `json:"country"`
+	Zip          string  `json:"zip"`
+	Lat          float64 `json:"lat"`
+	Lng          float64 `json:"lng"`
 	Rating       float64  `json:"rating"`       
 	OpeningHours []string `json:"opening_hours"`
 }
+
