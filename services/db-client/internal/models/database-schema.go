@@ -52,6 +52,7 @@ type Unit struct {
     BeverageID string     `json:"beverage_id"`
     Name       string     `json:"name"`
     VolumeML   *int       `json:"volume_ml"`
+    Size        *string      `json:"size"`
     UnitType   *string    `json:"unit_type"`
     CreatedAt  time.Time  `json:"created_at"`
     UpdatedAt  time.Time  `json:"updated_at"`

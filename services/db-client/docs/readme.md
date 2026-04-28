@@ -13,7 +13,7 @@ Checks if database connection is still open.
 **Output:**
 `{"status": "ok"}`
 
-### GET /venues/{id}
+### GET /venue/{id}
 
 Joins location and venue data and returns relevant json
 
@@ -42,7 +42,7 @@ Joins location and venue data and returns relevant json
 }
 ```
 
-### POST /venues/create
+### POST /venue/create
 
 Expects a json payload in from the request, and inserts it into the database.
 
@@ -62,6 +62,24 @@ Expects a json payload in from the request, and inserts it into the database.
 
 **Output**
 Status 201 created, if input was valid.
+
+## Packages
+
+### DB
+
+The DB package contains the database client, which does nothing other than maintain the database connection and expose it to other packages.
+
+### Handlers
+
+HTTP handler methods
+
+### Stores
+
+Contains stores like venueStore, locationStore etc. These structs are responsible for all communication with the database.
+
+### Models
+
+Golang representations of database tables.
 
 ## Build
 

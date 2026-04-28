@@ -6,7 +6,7 @@ import (
 	"github.com/google/uuid"
 )
 
-type CreateVenueInput struct {
+type CreateVenueRequest struct {
     Name         string     `json:"name"`
     VenueChainID *uuid.UUID `json:"venue_chain_id,omitempty"`
     Street       string     `json:"street"`
@@ -27,3 +27,19 @@ type VenueResponse struct {
     UpdatedAt   time.Time  `json:"updated_at"`
     DeletedAt   *time.Time `json:"deleted_at,omitempty"`
 }
+
+type CreateUnitsRequest struct {
+    VenueID *uuid.UUID `json:"venueID"`
+    Units []*UnitInput `json:"units"`
+}
+
+type UnitInput struct {
+    Name       string     `json:"name"`
+    VolumeML   *int       `json:"volume_ml"`
+    Size        *string    `json:"size"`
+    UnitType   *string    `json:"unit_type"`
+    Price      int      `json:"price"`
+    Currency   string  `json:"currency"`
+    ABV        int  `json:"abv"`
+}
+

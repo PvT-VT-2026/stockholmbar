@@ -17,7 +17,7 @@ func NewVenueStore(db *db.DBClient) *VenueStore {
 	return &VenueStore{db:db}
 }
 
-func (s *VenueStore) Create(ctx context.Context, input models.CreateVenueInput) (*models.Venue, error) {
+func (s *VenueStore) Create(ctx context.Context, input models.CreateVenueRequest) (*uuid.UUID, error) {
 
 	// This method inserts into multiple tables (venue & location). Instead of doing two separate insertions, we wrap them in a transaction
 	// so that if one fails, the other one rolls back as well. 
@@ -66,10 +66,10 @@ func (s *VenueStore) Create(ctx context.Context, input models.CreateVenueInput) 
         return nil, fmt.Errorf("Create: commit: %w", err)
     }
 
-	return nil,nil
+	return &venueID,nil
 }
 
-
+// Returns a VenueResponse, which contains all the data from the venue table as well as the location data
 func (s *VenueStore) GetByID (ctx context.Context, id uuid.UUID) (*models.VenueResponse, error) {
     var venue models.VenueResponse
     var location models.Location

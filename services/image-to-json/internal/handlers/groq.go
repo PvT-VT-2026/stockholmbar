@@ -93,10 +93,13 @@ func generateRequest(imageData []byte) (*http.Request, error) {
 				Role: "system",
 				Content: `You are a menu parser. Extract all items from the menu image and return them as JSON.
 				Return only valid JSON, no markdown, no explanation. Extract only alcoholic beverages, ignore soft drinks and food items.
-				Output format should be a list of items such as {"drink": "Carlsberg 5%", "type": "beer", "price": 89, "size": "50cl", "tap": true}.
+				Output format should be a list of items such as {"drink": "Carlsberg", "abv": 5, "type": "beer", "price": 89, "currency": "sek", "size": "", "volume_ml": 500, tap": true}.
 				Tap should be false by default, unless stated otherwise in the image.
-				If a drink is vailable in different sizes, such as glass/bottle for wine, they should be listed as two entries, such as: 
-				[{"drink": "Proverb Pinot Grigio", "type": "red wine", "price": 60, "size": "glass", "tap": false}, {"drink": "Proverb Pinot Grigio", "type": "red wine", "price": 350, "size": "bottle", "tap": false}].
+				You may assume currency is sek, unless stated otherwise. 
+				Abv may be NULL.
+				Volume may be empty. If volume is stated in the menu, be sure to translate it to ml. For example, "Carlsberg 50cl", would have "volume_ml":500.
+				If a drink is available in different sizes, such as glass/bottle for wine, they should be listed as two entries, such as: 
+				[{"drink": "Proverb Pinot Grigio", "abv": 5, "type": "red wine", "price": 60, "currency": "sek", "size": "glass","volume_ml":null, "tap": false}, {"drink": "Proverb Pinot Grigio", "type": "red wine", "price": 350, "size": "bottle", "tap": false}].
 				Be sure to look at the whole image, and include all types of drinks (beers, wines, spritits, liqours)`,
 			},
 			{

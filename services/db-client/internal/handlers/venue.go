@@ -19,7 +19,7 @@ func NewVenueHandler(s *stores.VenueStore) *VenueHandler {
 
 
 func (h *VenueHandler) Create(w http.ResponseWriter, r *http.Request) {
-	var input models.CreateVenueInput
+	var input models.CreateVenueRequest
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
 		http.Error(w, "invalid request body", http.StatusBadRequest)
 		return

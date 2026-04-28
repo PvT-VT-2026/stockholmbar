@@ -22,16 +22,19 @@ func main() {
 
 
     venueStore := stores.NewVenueStore(dbClient)
+    unitStore := stores.NewUnitStore(dbClient)
 
 
     // Bind handlers
     mux := http.NewServeMux()
     healthHandler := handlers.NewHealthHandler(dbClient)
     venueHandler := handlers.NewVenueHandler(venueStore)
+    unitHandler := handlers.NewUnitHandler(unitStore)
 
 	mux.HandleFunc("GET /health", healthHandler.Health)
-	mux.HandleFunc("GET /venues/{id}", venueHandler.GetByID)
-    mux.HandleFunc("POST /venues/create", venueHandler.Create)
+	mux.HandleFunc("GET /venue/{id}", venueHandler.GetByID)
+    mux.HandleFunc("POST /venue/create", venueHandler.Create)
+    mux.HandleFunc("POST /unit/create", unitHandler.CreateUnits)
 
     // Default to 8081
 	port := os.Getenv("PORT")
