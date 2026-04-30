@@ -1,13 +1,17 @@
 package handlers
 
 import (
-	"db-client/internal/models"
 	"db-client/internal/stores"
 	"encoding/json"
+	"fmt"
 	"net/http"
 
 	"github.com/google/uuid"
 )
+
+// VenueHandler no longer owns its own insertion endpoint,
+// as all insertions go through the submission system.
+// This handler will be populated by getters only
 
 type VenueHandler struct {
 	store *stores.VenueStore
@@ -17,34 +21,17 @@ func NewVenueHandler(s *stores.VenueStore) *VenueHandler {
 	return &VenueHandler{store: s}
 }
 
-
-func (h *VenueHandler) Create(w http.ResponseWriter, r *http.Request) {
-	var input models.CreateVenueRequest
-	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-		http.Error(w, "invalid request body", http.StatusBadRequest)
-		return
-	}
-
-	venue, err := h.store.Create(r.Context(), input)
-	if err != nil {
-		http.Error(w, "internal server error", http.StatusInternalServerError)
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(venue)
-}
-
 func (h *VenueHandler) GetByID(w http.ResponseWriter, r *http.Request) {
     id, err := uuid.Parse(r.PathValue("id"))
     if err != nil {
+		fmt.Printf("VenueHandler.GetByID: %v", err)
         http.Error(w, "invalid id", http.StatusBadRequest)
         return
     }
 
     venue, err := h.store.GetByID(r. Context(), id)
     if err != nil {
+		fmt.Printf("VenueHandler.GetByID: %v", err)
         http.Error(w, "internal server error", http.StatusInternalServerError)
         return
     }

@@ -1,12 +1,18 @@
 package models
 
 import (
-	"time"
+	"encoding/json"
 
 	"github.com/google/uuid"
 )
 
-type CreateVenueRequest struct {
+// Request body for requesting to create a submission.
+type CreateSubmissionRequest struct {
+    Category  string          `json:"category"`   // "unit", "venue", etc
+    Payload   json.RawMessage `json:"payload"`    // the raw submission data
+}
+
+type CreateVenuePayload struct {
     Name         string     `json:"name"`
     VenueChainID *uuid.UUID `json:"venue_chain_id,omitempty"`
     Street       string     `json:"street"`
@@ -18,17 +24,7 @@ type CreateVenueRequest struct {
     Lng          float64    `json:"lng"`
 }
 
-type VenueResponse struct {
-    ID          string     `json:"id"`
-    Name        string     `json:"name"`
-    Location    Location   `json:"location"`
-    VenueChainID *string   `json:"venue_chain_id,omitempty"`
-    CreatedAt   time.Time  `json:"created_at"`
-    UpdatedAt   time.Time  `json:"updated_at"`
-    DeletedAt   *time.Time `json:"deleted_at,omitempty"`
-}
-
-type CreateUnitsRequest struct {
+type CreateUnitsPayload struct {
     VenueID *uuid.UUID `json:"venueID"`
     Units []*UnitInput `json:"units"`
 }
@@ -40,6 +36,5 @@ type UnitInput struct {
     UnitType   *string    `json:"unit_type"`
     Price      int      `json:"price"`
     Currency   string  `json:"currency"`
-    ABV        int  `json:"abv"`
+    ABV        float32  `json:"abv"`
 }
-

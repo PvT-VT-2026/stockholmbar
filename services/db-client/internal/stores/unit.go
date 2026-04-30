@@ -22,7 +22,7 @@ func NewUnitStore(db *db.DBClient) *UnitStore {
 
 // This method inserts units, creates venue_unit entries, adds price records and
 // creates beverages if a unit does not have a corresponding beverage already.
-func (s *UnitStore) CreateUnits(ctx context.Context, input models.CreateUnitsRequest) error {
+func (s *UnitStore) Create(ctx context.Context, input *models.CreateUnitsPayload) error {
 	// Wrap inserts into a transaction so that if one fails, they will all roll back.
     tx, err := s.db.DB().BeginTx(ctx, nil)
     if err != nil {

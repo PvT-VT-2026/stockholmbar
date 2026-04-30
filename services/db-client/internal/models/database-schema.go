@@ -1,9 +1,22 @@
 package models
 
 import (
+	"encoding/json"
 	"time"
+
+	"github.com/google/uuid"
 )
 
+type Submission struct {
+    ID          uuid.UUID       `json:"id"`
+    SubmittedBy uuid.UUID       `json:"submitted_by"`
+    Category    string          `json:"category"`
+    Status      string          `json:"status"`
+    Payload     json.RawMessage `json:"payload"`
+    ReviewedAt  *time.Time      `json:"reviewed_at"`
+    CreatedAt   time.Time       `json:"created_at"`
+    DeletedAt   *time.Time      `json:"deleted_at"`
+}
 
 type Location struct {
     ID        string     `json:"id"`
@@ -40,7 +53,7 @@ type Venue struct {
 type AlcoholicBeverage struct {
     ID          string     `json:"id"`
     Name        string     `json:"name"`
-    ABV         *float64   `json:"abv"`
+    ABV         *float32   `json:"abv"`
     Description *string    `json:"description"`
     CreatedAt   time.Time  `json:"created_at"`
     UpdatedAt   time.Time  `json:"updated_at"`
