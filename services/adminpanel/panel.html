@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin Panel</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #f5f4f0;
+      color: #1a1a18;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      padding: 2rem 1rem;
+    }
+
+    .container { width: 100%; max-width: 680px; }
+
+    h1 {
+      font-size: 20px;
+      font-weight: 500;
+      margin-bottom: 1.5rem;
+      color: #1a1a18;
+    }
+
+    .meta-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 1.25rem;
+    }
+
+    .progress-label {
+      font-size: 13px;
+      color: #888780;
+      margin-bottom: 4px;
+    }
+
+    .progress-bar {
+      width: 200px;
+      height: 4px;
+      background: #e8e6e0;
+      border-radius: 4px;
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: #5f5e5a;
+      border-radius: 4px;
+      transition: width 0.3s ease;
+    }
+
+    .badge {
+      font-size: 12px;
+      padding: 4px 10px;
+      border-radius: 8px;
+      font-weight: 500;
+    }
+    .badge-pending  { background: #e8e6e0; color: #5f5e5a; }
+    .badge-accept   { background: #eaf3de; color: #3b6d11; }
+    .badge-reject   { background: #fcebeb; color: #a32d2d; }
+
+    .card {
+      background: #fff;
+      border: 0.5px solid #d8d6d0;
+      border-radius: 12px;
+      padding: 1.25rem;
+      margin-bottom: 1rem;
+    }
+
+    .fields {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 1rem;
+    }
+
+    .field-label {
+      font-size: 12px;
+      color: #888780;
+      margin-bottom: 2px;
+    }
+
+    .field-value {
+      font-size: 14px;
+      font-weight: 500;
+      color: #1a1a18;
+    }
+
+    .field-value.mono {
+      font-family: "SF Mono", "Fira Code", monospace;
+      font-weight: 400;
+    }
+
+    .divider { border-top: 0.5px solid #d8d6d0; padding-top: 1rem; }
+
+    .payload-label { font-size: 12px; color: #888780; margin-bottom: 8px; }
+
+    pre {
+      font-family: "SF Mono", "Fira Code", monospace;
+      font-size: 12px;
+      background: #f5f4f0;
+      border-radius: 8px;
+      padding: 0.75rem;
+      overflow-x: auto;
+      line-height: 1.6;
+      color: #2c2c2a;
+    }
+
+    .actions { display: flex; gap: 8px; }
+
+    .btn {
+      flex: 1;
+      padding: 10px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 500;
+      border: 0.5px solid;
+      transition: opacity 0.15s;
+    }
+    .btn:hover { opacity: 0.85; }
+    .btn:active { transform: scale(0.98); }
+
+    .btn-accept {
+      background: #eaf3de;
+      color: #3b6d11;
+      border-color: #97c459;
+    }
+
+    .btn-reject {
+      background: #fcebeb;
+      color: #a32d2d;
+      border-color: #f09595;
+    }
+
+    .btn-skip {
+      padding: 10px 16px;
+      background: #fff;
+      color: #444441;
+      border-color: #c8c6c0;
+      flex: 0 0 auto;
+    }
+
+    .log { margin-top: 1.25rem; display: flex; flex-direction: column; gap: 6px; }
+
+    .log-entry {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      padding: 8px 12px;
+      border-radius: 8px;
+    }
+
+    .log-entry.accept { background: #eaf3de; color: #3b6d11; }
+    .log-entry.reject { background: #fcebeb; color: #a32d2d; }
+
+    .log-entry .log-id   { font-family: "SF Mono","Fira Code",monospace; }
+    .log-entry .log-cat  { opacity: 0.7; }
+    .log-entry .log-dec  { margin-left: auto; font-weight: 500; }
+
+    .done-msg {
+      text-align: center;
+      padding: 2rem;
+      color: #5f5e5a;
+      font-size: 15px;
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+  <h1>Granska submissions</h1>
+
+  <div class="meta-row">
+    <div>
+      <p class="progress-label">Submission <span id="idx"></span> av <span id="total"></span></p>
+      <div class="progress-bar"><div class="progress-fill" id="prog"></div></div>
+    </div>
+    <span class="badge badge-pending" id="status-badge">Väntar</span>
+  </div>
+
+  <div id="main-content">
+    <div class="card">
+      <div class="fields">
+        <div>
+          <p class="field-label">ID</p>
+          <p class="field-value mono" id="f-id"></p>
+        </div>
+        <div>
+          <p class="field-label">Kategori</p>
+          <p class="field-value" id="f-cat"></p>
+        </div>
+        <div>
+          <p class="field-label">Inskickad av</p>
+          <p class="field-value" style="font-weight:400;" id="f-by"></p>
+        </div>
+        <div>
+          <p class="field-label">Skapad</p>
+          <p class="field-value" style="font-weight:400;" id="f-at"></p>
+        </div>
+      </div>
+      <div class="divider">
+        <p class="payload-label">Payload</p>
+        <pre id="f-payload"></pre>
+      </div>
+    </div>
+
+    <div class="actions">
+      <button class="btn btn-accept" onclick="decide('accept')">Acceptera</button>
+      <button class="btn btn-reject" onclick="decide('reject')">Avvisa</button>
+      <button class="btn btn-skip"   onclick="skip()">Hoppa över</button>
+    </div>
+  </div>
+
+  <div class="log" id="log"></div>
+</div>
+
+<script>
+
+// Mock submissions
+const MOCK_SUBMISSIONS = [
+  {
+    id: "674adbd4-0115-445e-bdb1-34294021519d-1",
+    category: "venue-1",
+    submitted_by: "alex.enberg@hotmail.com-1",
+    created_at: "2025-04-30 14:22",
+    payload: {
+      "lat": 59.4067,
+      "lng": 17.9452,
+      "zip": "164 25",
+      "area": "Kista",
+      "city": "Stockholm",
+      "name": "Foobar",
+      "street": "Borgarfjordsgatan 99",
+      "country": "Sweden"
+    }
+  },
+  {
+    id: "674adbd4-0115-445e-bdb1-34294021519d-2",
+    category: "venue-2",
+    submitted_by: "alex.enberg@hotmail.com-2",
+    created_at: "2025-05-01 09:10",
+    payload: {
+      "lat": 59.4067,
+      "lng": 17.9452,
+      "zip": "164 25",
+      "area": "Kista",
+      "city": "Stockholm",
+      "name": "Foobar",
+      "street": "Borgarfjordsgatan 99",
+      "country": "Sweden"
+    }
+  },
+  {
+    id: "674adbd4-0115-445e-bdb1-34294021519d-3",
+    category: "venue-3",
+    submitted_by: "alex.enberg@hotmail.com-3",
+    created_at: "2025-05-01 11:45",
+    payload: {
+      "lat": 59.4067,
+      "lng": 17.9452,
+      "zip": "164 25",
+      "area": "Kista",
+      "city": "Stockholm",
+      "name": "Foobar",
+      "street": "Borgarfjordsgatan 99",
+      "country": "Sweden"
+    }
+  }
+];
+
+// Mock
+let mockIndex = 0;
+// Mock
+const originalFetch = window.fetch;
+window.fetch = async (url, opts) => {
+  if (url.includes('/admin/submission/list')) {
+    return { ok: true, json: async () => MOCK_SUBMISSIONS };
+  }
+  if (url.includes('/admin/submission/next')) {
+    if (mockIndex >= MOCK_SUBMISSIONS.length) return { ok: false };
+    return { ok: true, json: async () => MOCK_SUBMISSIONS[mockIndex++] };
+  }
+  if (url.match(/\/admin\/submission\/.+\/(accept|reject)/)) {
+    return { ok: true };
+  }
+  return originalFetch(url, opts);
+};
+
+let current = null;
+let totalPending = 0;
+let reviewed = 0;
+
+async function init() {
+  try {
+    const res = await fetch('/admin/submission/list?status=pending');
+    const list = await res.json();
+    totalPending = list.length;
+  } catch (_) {}
+  loadNext();
+}
+
+function updateProgress() {
+  document.getElementById('idx').textContent   = reviewed;
+  document.getElementById('total').textContent = totalPending || '?';
+  document.getElementById('prog').style.width  =
+    totalPending > 0 ? (reviewed / totalPending * 100) + '%' : '0%';
+}
+
+async function loadNext() {
+  setLoading(true);
+  try {
+    const res = await fetch('/admin/submission/next');
+    if (!res.ok) { showDone(); return; }
+    current = await res.json();
+    render();
+  } catch (err) {
+    showError(err);
+  } finally {
+    setLoading(false);
+  }
+}
+
+function render() {
+  document.getElementById('f-id').textContent      = current.id;
+  document.getElementById('f-cat').textContent     = current.category;
+  document.getElementById('f-by').textContent      = current.submitted_by;
+  document.getElementById('f-at').textContent      = current.created_at;
+  document.getElementById('f-payload').textContent = JSON.stringify(current.payload, null, 2);
+  updateProgress();
+
+  const badge = document.getElementById('status-badge');
+  badge.className = 'badge badge-pending';
+  badge.textContent = 'Väntar';
+}
+
+async function decide(action) {
+  if (!current) return;
+  const id  = current.id;
+  const cat = current.category;
+
+  try {
+    const res = await fetch(`/admin/submission/${id}/${action}`, { method: 'POST' });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    reviewed++;
+    addLog(id, cat, action);
+    loadNext();
+  } catch (err) {
+    showError(err);
+  }
+}
+
+function skip() {
+  loadNext();
+}
+
+function addLog(id, cat, action) {
+  const log = document.getElementById('log');
+  const el  = document.createElement('div');
+  const ok  = action === 'accept';
+  el.className = 'log-entry ' + (ok ? 'accept' : 'reject');
+  el.innerHTML = `<span class="log-id">${id}</span><span class="log-cat">${cat}</span><span class="log-dec">${ok ? 'Accepterad' : 'Avslagen'}</span>`;
+  log.prepend(el);
+}
+
+function setLoading(on) {
+  document.getElementById('main-content').style.opacity = on ? '0.4' : '1';
+}
+
+function showDone() {
+  document.getElementById('main-content').innerHTML =
+    '<div class="done-msg">Inga fler submissions att granska.</div>';
+}
+
+function showError(err) {
+  document.getElementById('main-content').innerHTML =
+    `<div class="done-msg" style="color:#a32d2d;">Fel: ${err.message}</div>`;
+}
+
+init();
+</script>
+</body>
+</html>
