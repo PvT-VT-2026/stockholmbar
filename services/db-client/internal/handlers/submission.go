@@ -1,12 +1,15 @@
 package handlers
 
 import (
+	"bytes"
 	"db-client/internal/models"
 	"db-client/internal/services"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
+	"strconv"
 
 	"github.com/google/uuid"
 )
@@ -75,13 +78,12 @@ func (h *SubmissionHandler) CreateSubmission(w http.ResponseWriter, r *http.Requ
 // Retrieves an entire submission, including payload, by id
 func (h *SubmissionHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 
-	idParam := r.URL.Query().Get("id")
-	submissionID, err := uuid.Parse(idParam)
-	if err != nil {
+	submissionID, err := uuid.Parse(r.PathValue("id"))
+    if err != nil {
 		fmt.Printf("SubmissionHandler.GetByID: %v", err)
-		http.Error(w, "invalid id parameter", http.StatusBadRequest)
-		return
-	}
+        http.Error(w, "invalid id parameter", http.StatusBadRequest)
+        return
+    }
 
 	submission, err := h.service.GetByID(r.Context(), submissionID)
 	if err != nil {
@@ -98,6 +100,37 @@ func (h *SubmissionHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(submission)
 }	
+
+// Retreives the image associated with a submission, if there is one
+func (h *SubmissionHandler) GetImageByID(w http.ResponseWriter, r *http.Request) {
+    submissionID, err := uuid.Parse(r.PathValue("id"))
+    if err != nil {
+		fmt.Printf("SubmissionHandler.GetImageByID: %v", err)
+        http.Error(w, "invalid id parameter", http.StatusBadRequest)
+        return
+    }
+
+	imageBytes, err := h.service.GetImageByID(r.Context(), submissionID)
+	if err != nil {
+		fmt.Printf("SubmissionHandler.GetImageByID: %v", err)
+		http.Error(w, "internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	if imageBytes == nil {
+		http.Error(w, "not found", http.StatusNotFound)
+		return
+	}
+
+
+	// Set content length according to image size and use io.Copy to write
+	// the response instead of w.Write, to avoid partial read/write errors.
+	w.Header().Set("Content-Type", http.DetectContentType(imageBytes))
+	w.Header().Set("Content-Length", strconv.Itoa(len(imageBytes)))
+    
+    io.Copy(w, bytes.NewReader(imageBytes))
+}	
+
 
 // Retrieves the oldest pending submission. 
 // Mainly used by the admin panel to easily get the next in line submission.

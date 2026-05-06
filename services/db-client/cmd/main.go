@@ -47,6 +47,7 @@ func main() {
 	mux.HandleFunc("GET /admin/health", healthHandler.Health)
     mux.HandleFunc("GET /admin/submission/next", submissionHandler.GetOldestPending)    // Fetches the oldest pending submission, meant for reviewing submissions in order of creation date
     mux.HandleFunc("GET /admin/submission/{id}", submissionHandler.GetByID)             // Fetch an existing submission by id
+    mux.HandleFunc("GET /admin/submission/{id}/image", submissionHandler.GetImageByID)  // Fetch an submission image by submission id
     mux.HandleFunc("GET /admin/submission/list", submissionHandler.ListSubmissions)     // Fetches a list of submissions without payloads, only metadata. Can be filtered on status
     mux.HandleFunc("POST /admin/submission/{id}/accept", submissionHandler.Accept)      // Accepts a submission, inserting it into the database and updating the submission status        
     mux.HandleFunc("POST /admin/submission/{id}/reject", submissionHandler.Reject)      // Rejects a submission        

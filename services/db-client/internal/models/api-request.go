@@ -27,6 +27,7 @@ type CreateVenuePayload struct {
 type CreateUnitsPayload struct {
     VenueID *uuid.UUID `json:"venueID"`
     Units []*UnitInput `json:"units"`
+    Image *string       `json:"image,omitempty"` // raw base64 string from client
 }
 
 type UnitInput struct {

@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"db-client/internal/db"
 	"db-client/internal/models"
+	"encoding/json"
 	"errors"
 	"fmt"
 
@@ -20,16 +21,67 @@ func NewSubmissionStore(db *db.DBClient) *SubmissionStore {
 }
 
 func (s *SubmissionStore) Create(ctx context.Context, userID uuid.UUID, input models.CreateSubmissionRequest) error {
-	_, err := s.db.DB().ExecContext(ctx, `
-		INSERT INTO submission (submitted_by, category, status, payload)
-		VALUES ($1, $2, 'pending', $3)
-	`, 
-	userID, input.Category, input.Payload)
-	if err != nil {
-		return fmt.Errorf("SubmissionStore.Create: %w", err)
-	}
+    
+    tx, err := s.db.DB().BeginTx(ctx, nil)
+    if err != nil {
+        return err
+    }
+    defer tx.Rollback()
+    
+    var imageBytes []byte
 
-	return nil
+    if input.Category == "unit" {
+        var unitPayload models.CreateUnitsPayload
+        if err := json.Unmarshal(input.Payload, &unitPayload); err != nil {
+            return fmt.Errorf("invalid unit payload %w", err)
+        }
+        
+        if unitPayload.Image != nil {
+            imageBytes, err = decodeBase64Image(*unitPayload.Image)
+            if err != nil {
+                return fmt.Errorf("invalid image: %w", err)
+            }
+
+            // Set the image field to nil so that it is not stored in the submission table
+            unitPayload.Image = nil
+
+            // Re-marshal the payload without the image
+            stripped, err := json.Marshal(unitPayload)
+            if err != nil {
+                return err
+            }
+            input.Payload = stripped
+        }
+    }
+
+    hash, err := hashPayload(input.Payload)
+    if err != nil {
+        return err
+    }
+
+    // Insert submission and fetch the generated id
+    var submissionID uuid.UUID
+    err = tx.QueryRowContext(ctx,
+        `INSERT INTO submission (submitted_by, category, status, payload, payload_hash)
+		VALUES ($1, $2, 'pending', $3, $4)
+        RETURNING id`,
+    userID, input.Category, input.Payload, hash).Scan(&submissionID)
+    if err != nil {
+        return fmt.Errorf("Submissionstore.Create: %w", err)
+    }
+
+    // Insert the image if one was provided
+    if imageBytes != nil {
+        _, err := tx.ExecContext(ctx, 
+            `INSERT INTO submission_image (submission_id, data)
+            VALUES ($1, $2)`,
+        submissionID, imageBytes)
+        if err != nil {
+            return fmt.Errorf("Submissionstore.Create: %w", err)
+        }
+    }
+    
+	return tx.Commit()
 }
 
 func (s *SubmissionStore) List(ctx context.Context, status string) (*models.ListSubmissionsResponse, error) {
@@ -91,6 +143,26 @@ func (s *SubmissionStore) GetByID(ctx context.Context, id uuid.UUID) (*models.Su
     }
 
     return &submission, nil
+}
+
+func (s *SubmissionStore) GetImageByID(ctx context.Context, id uuid.UUID) ([]byte, error) {
+    var data []byte
+    
+	err := s.db.DB().QueryRowContext(ctx, `
+        SELECT data
+        FROM submission_image
+        WHERE submission_id = $1
+    `, id).Scan(
+        &data,
+    )
+    if errors.Is(err, sql.ErrNoRows) {
+        return nil, nil
+    }
+    if err != nil {
+        return nil, fmt.Errorf("SubmissionStore.GetImageByID: %w", err)
+    }
+
+    return data, nil
 }
 
 func (s *SubmissionStore) GetOldestPending(ctx context.Context) (*models.Submission, error) {

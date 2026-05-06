@@ -55,6 +55,10 @@ func (s *SubmissionService) GetByID(ctx context.Context, id uuid.UUID) (*models.
 	return s.submissionStore.GetByID(ctx, id)
 }
 
+func (s *SubmissionService) GetImageByID(ctx context.Context, id uuid.UUID) ([]byte, error) {
+	return s.submissionStore.GetImageByID(ctx, id)
+}
+
 func (s *SubmissionService) GetOldestPending(ctx context.Context) (*models.Submission, error) {
 	return s.submissionStore.GetOldestPending(ctx)
 }

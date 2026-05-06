@@ -15,20 +15,53 @@ The endpoints are divided into client (frontend) facing endpoints and admin faci
 Used for creating a submission out of user data.
 Requires a valid payload in the request body. These are defined in `/db-client/internal/models/api-request.go`
 
-Example request body:
+Example request body (venue submission):
 
-```json{
-    "category": "venue",
-    "payload": {
-        "name": "Foobar",
-        "street": "Borgarfjordsgatan 99",
-        "area": "Kista",
-        "city": "Stockholm",
-        "country": "Sweden",
-        "zip": "164 25",
-        "lat": 59.4067,
-        "lng": 17.9452
-    }
+```json
+{
+  "category": "venue",
+  "payload": {
+    "name": "Foobar",
+    "street": "Borgarfjordsgatan 99",
+    "area": "Kista",
+    "city": "Stockholm",
+    "country": "Sweden",
+    "zip": "164 25",
+    "lat": 59.4067,
+    "lng": 17.9452
+  }
+}
+```
+
+Example request body (unit submission):
+
+```json
+{
+  "category": "unit",
+  "payload": {
+    "venueID": "81451352-c86f-4c91-94d3-2e2bb396a586",
+    "units": [
+      {
+        "name": "Heineken",
+        "volume_ml": 330,
+        "size": "",
+        "unit_type": "beer",
+        "price": 68,
+        "currency": "sek",
+        "abv": 5
+      },
+      {
+        "name": "Jack daniels",
+        "volume_ml": 40,
+        "size": "",
+        "unit_type": "whiskey",
+        "price": 109,
+        "currency": "sek",
+        "abv": 40
+      }
+    ],
+    "image": "BASE 64 ENCODING OF THE IMAGE"
+  }
 }
 ```
 
@@ -42,24 +75,25 @@ Example request: `GET /database/venue/49295f5c-e408-4c30-b197-4154d98c15df`
 
 Example Response:
 
-```json{
-    "id": "49295f5c-e408-4c30-b197-4154d98c15df",
-    "name": "Foobar",
-    "location": {
-        "id": "bb86c03d-3c5c-4d15-9d6c-c13f8c09a7f8",
-        "street": "Borgarfjordsgatan 99",
-        "area": "Kista",
-        "city": "Stockholm",
-        "country": "Sweden",
-        "zip": "164 25",
-        "lat": 59.4067,
-        "lng": 17.9452,
-        "created_at": "2026-04-30T12:56:36.759637Z",
-        "updated_at": "2026-04-30T12:56:36.759637Z",
-        "deleted_at": null
-    },
+```json
+{
+  "id": "49295f5c-e408-4c30-b197-4154d98c15df",
+  "name": "Foobar",
+  "location": {
+    "id": "bb86c03d-3c5c-4d15-9d6c-c13f8c09a7f8",
+    "street": "Borgarfjordsgatan 99",
+    "area": "Kista",
+    "city": "Stockholm",
+    "country": "Sweden",
+    "zip": "164 25",
+    "lat": 59.4067,
+    "lng": 17.9452,
     "created_at": "2026-04-30T12:56:36.759637Z",
-    "updated_at": "2026-04-30T12:56:36.759637Z"
+    "updated_at": "2026-04-30T12:56:36.759637Z",
+    "deleted_at": null
+  },
+  "created_at": "2026-04-30T12:56:36.759637Z",
+  "updated_at": "2026-04-30T12:56:36.759637Z"
 }
 ```
 
@@ -79,24 +113,25 @@ The category tells the administration panel how to interpret the payload, as the
 
 Example response:
 
-```json{
-    "id": "674adbd4-0115-445e-bdb1-34294021519d",
-    "submitted_by": "cc0b1984-8349-43f3-8fb6-a28df39c77e2",
-    "category": "venue",
-    "status": "pending",
-    "payload": {
-        "lat": 59.4067,
-        "lng": 17.9452,
-        "zip": "164 25",
-        "area": "Kista",
-        "city": "Stockholm",
-        "name": "Foobar",
-        "street": "Borgarfjordsgatan 99",
-        "country": "Sweden"
-    },
-    "reviewed_at": null,
-    "created_at": "2026-04-30T12:17:28.12947Z",
-    "deleted_at": null
+```json
+{
+  "id": "674adbd4-0115-445e-bdb1-34294021519d",
+  "submitted_by": "cc0b1984-8349-43f3-8fb6-a28df39c77e2",
+  "category": "venue",
+  "status": "pending",
+  "payload": {
+    "lat": 59.4067,
+    "lng": 17.9452,
+    "zip": "164 25",
+    "area": "Kista",
+    "city": "Stockholm",
+    "name": "Foobar",
+    "street": "Borgarfjordsgatan 99",
+    "country": "Sweden"
+  },
+  "reviewed_at": null,
+  "created_at": "2026-04-30T12:17:28.12947Z",
+  "deleted_at": null
 }
 ```
 
@@ -106,6 +141,22 @@ Responds with a submission, exactly like the above endpoint.
 Returns the submission with the matching id, regardless of status pending/accepted/rejected.
 
 Example call: `/admin/submission/674adbd4-0115-445e-bdb1-34294021519d`
+
+### GET /admin/submission/{id}/image
+
+Responds with the raw byte data of the image associated with the submission.
+
+Instead of returning a json response like the other endpoints, this one writes the raw image data straight into the response object. This means that the admin panel can simply use the url as the image soruce, without having to deal with manual rendering.
+Example:
+
+```
+<img
+      src={`http://localhost:8081/admin/submission/<submission_id>/image`}
+      alt="Submission"
+/>
+```
+
+**NOTE**: Only submissions with category "unit" have images.
 
 ### GET /admin/submission/list?status=Argument
 

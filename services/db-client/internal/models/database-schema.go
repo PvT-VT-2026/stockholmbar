@@ -7,12 +7,21 @@ import (
 	"github.com/google/uuid"
 )
 
+
+type SubmissionImage struct {
+    ID           uuid.UUID `json:"id"`
+    SubmissionID uuid.UUID `json:"submission_id"`
+    Data         []byte    `json:"data"`
+    CreatedAt    time.Time `json:"created_at"`
+}
+
 type Submission struct {
     ID          uuid.UUID       `json:"id"`
     SubmittedBy uuid.UUID       `json:"submitted_by"`
     Category    string          `json:"category"`
     Status      string          `json:"status"`
     Payload     json.RawMessage `json:"payload"`
+    PayloadHash string          `json:"payload_hash"`
     ReviewedAt  *time.Time      `json:"reviewed_at"`
     CreatedAt   time.Time       `json:"created_at"`
     DeletedAt   *time.Time      `json:"deleted_at"`
