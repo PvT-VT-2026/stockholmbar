@@ -290,24 +290,6 @@ const MOCK_SUBMISSIONS = [
 }
 ];
 
-// Mock
-let mockIndex = 0;
-// Mock
-const originalFetch = window.fetch;
-window.fetch = async (url, opts) => {
-  if (url.includes('/admin/submission/list')) {
-    return { ok: true, json: async () => MOCK_SUBMISSIONS };
-  }
-  if (url.includes('/admin/submission/next')) {
-    if (mockIndex >= MOCK_SUBMISSIONS.length) return { ok: false };
-    return { ok: true, json: async () => MOCK_SUBMISSIONS[mockIndex++] };
-  }
-  if (url.match(/\/admin\/submission\/.+\/(accept|reject)/)) {
-    return { ok: true };
-  }
-  return originalFetch(url, opts);
-};
-
 let current = null;
 let totalPending = 0;
 let reviewed = 0;
@@ -350,7 +332,7 @@ function render() {
   document.getElementById('f-payload').textContent = JSON.stringify(current.payload, null, 2);
   const img = document.getElementById('f-image');
   img.className = 'submission-image';
-  img.src = `http://localhost:8081/admin/submission/${current.id}/image`;
+  img.src = `/admin/submission/${current.id}/image`;
   img.onerror = () => { img.classList.add('hidden'); };
   img.onload  = () => { img.classList.remove('hidden'); };
 
