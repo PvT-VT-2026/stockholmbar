@@ -206,7 +206,14 @@
       </div>
       <div class="divider">
         <p class="payload-label">Payload</p>
-        <pre id="f-payload"></pre>
+        <div class="payload-row">
+          <pre id="f-payload"></pre>
+          <img
+            id="f-image"
+            class="submission-image hidden"
+            alt="Submission"
+          />
+        </div>
       </div>
     </div>
 
@@ -341,6 +348,12 @@ function render() {
   document.getElementById('f-by').textContent      = current.submitted_by;
   document.getElementById('f-at').textContent      = current.created_at;
   document.getElementById('f-payload').textContent = JSON.stringify(current.payload, null, 2);
+  const img = document.getElementById('f-image');
+  img.className = 'submission-image';
+  img.src = `http://localhost:8081/admin/submission/${current.id}/image`;
+  img.onerror = () => { img.classList.add('hidden'); };
+  img.onload  = () => { img.classList.remove('hidden'); };
+
   updateProgress();
 
   const badge = document.getElementById('status-badge');
@@ -382,6 +395,7 @@ function setLoading(on) {
 }
 
 function showDone() {
+  updateProgress();
   document.getElementById('main-content').innerHTML =
     '<div class="done-msg">Inga fler submissions att granska.</div>';
 }
