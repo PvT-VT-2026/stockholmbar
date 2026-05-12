@@ -101,35 +101,38 @@ func (h *SubmissionHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(submission)
 }	
 
-// Retreives the image associated with a submission, if there is one
+// Retreives the image associated with a submission, if there is one.
+// For blob-stored images, serves binary data directly.
+// For storage-URL images, redirects to the Supabase Storage URL.
 func (h *SubmissionHandler) GetImageByID(w http.ResponseWriter, r *http.Request) {
-    submissionID, err := uuid.Parse(r.PathValue("id"))
-    if err != nil {
+	submissionID, err := uuid.Parse(r.PathValue("id"))
+	if err != nil {
 		fmt.Printf("SubmissionHandler.GetImageByID: %v", err)
-        http.Error(w, "invalid id parameter", http.StatusBadRequest)
-        return
-    }
+		http.Error(w, "invalid id parameter", http.StatusBadRequest)
+		return
+	}
 
-	imageBytes, err := h.service.GetImageByID(r.Context(), submissionID)
+	result, err := h.service.GetImageByID(r.Context(), submissionID)
 	if err != nil {
 		fmt.Printf("SubmissionHandler.GetImageByID: %v", err)
 		http.Error(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
 
-	if imageBytes == nil {
+	if result == nil {
 		http.Error(w, "not found", http.StatusNotFound)
 		return
 	}
 
+	if result.URL != "" {
+		http.Redirect(w, r, result.URL, http.StatusFound)
+		return
+	}
 
-	// Set content length according to image size and use io.Copy to write
-	// the response instead of w.Write, to avoid partial read/write errors.
-	w.Header().Set("Content-Type", http.DetectContentType(imageBytes))
-	w.Header().Set("Content-Length", strconv.Itoa(len(imageBytes)))
-    
-    io.Copy(w, bytes.NewReader(imageBytes))
-}	
+	w.Header().Set("Content-Type", http.DetectContentType(result.Data))
+	w.Header().Set("Content-Length", strconv.Itoa(len(result.Data)))
+	io.Copy(w, bytes.NewReader(result.Data))
+}
 
 
 // Retrieves the oldest pending submission. 

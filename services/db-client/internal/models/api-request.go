@@ -27,7 +27,8 @@ type CreateVenuePayload struct {
 type CreateUnitsPayload struct {
     VenueID *uuid.UUID `json:"venueID"`
     Units []*UnitInput `json:"units"`
-    Image *string       `json:"image,omitempty"` // raw base64 string from client
+    Image    *string    `json:"image,omitempty"`    // raw base64 string from client
+    ImageURL *string    `json:"imageUrl,omitempty"` // pre-uploaded Supabase Storage URL
 }
 
 type UnitInput struct {
