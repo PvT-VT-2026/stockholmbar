@@ -1,0 +1,36 @@
+when:
+  - event: push
+    branch: main
+    path:
+      - services/db-client/**
+      - .woodpecker/db-client.yml
+
+steps:
+  - name: build-and-push
+    image: woodpeckerci/plugin-docker-buildx
+    settings:
+      platforms: linux/amd64
+      registry: ghcr.io
+      repo: ghcr.io/pvt-vt-2026/stockholmbar-db-client
+      tags:
+        - latest
+        - "${CI_COMMIT_SHA:0:8}"
+      username:
+        from_secret: GHCR_USERNAME
+      password:
+        from_secret: GHCR_TOKEN
+      dockerfile: services/db-client/Dockerfile
+      context: services/db-client
+
+  - name: deploy
+    image: appleboy/drone-ssh
+    settings:
+      host:
+        from_secret: HETZNER_IP
+      username: deploy
+      key:
+        from_secret: HETZNER_SSH_KEY
+      script:
+        - cd ~/app
+        - docker compose pull db-client
+        - docker compose up -d --no-deps db-client
