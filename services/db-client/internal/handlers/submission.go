@@ -58,7 +58,7 @@ func (h *SubmissionHandler) CreateSubmission(w http.ResponseWriter, r *http.Requ
 	}
 
 	if input.Category != "venue" && input.Category != "unit" {
-		fmt.Printf("SubmissionHandler.CreateSubmission: Invalid submission category type: %s", input.Category)
+		log.Printf("SubmissionHandler.CreateSubmission: Invalid submission category type: %s", input.Category)
 		http.Error(w, "unimplemented method", http.StatusNotImplemented)
 		return
 	}
