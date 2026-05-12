@@ -4,6 +4,8 @@ when:
     path:
       - services/db-client/**
       - .woodpecker/db-client.yml
+  - event: manual
+    branch: main
 
 steps:
   - name: build-and-push

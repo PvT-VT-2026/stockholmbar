@@ -4,6 +4,8 @@ when:
     path:
       - services/get-places-data/**
       - .woodpecker/get-places-data.yml
+  - event: manual
+    branch: main
 
 steps:
   - name: build-and-push

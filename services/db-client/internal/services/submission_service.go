@@ -29,22 +29,25 @@ func NewSubmissionService(sub *stores.SubmissionStore, unit *stores.UnitStore, v
 // and are ready for insertion.
 func (s *SubmissionService) CreateSubmission(ctx context.Context, userID uuid.UUID, input models.CreateSubmissionRequest) error {
 	
-	switch (input.Category) {
-		case "unit": 
-			var unitPayload *models.CreateUnitsPayload
-			if err := json.Unmarshal(input.Payload, &unitPayload); err != nil {
-				return fmt.Errorf("bad request: %w", err)
-			}
-		case "venue":
-			var venuePayload *models.CreateVenuePayload
-			if err := json.Unmarshal(input.Payload, &venuePayload); err != nil {
-				return fmt.Errorf("bad request: %w", err)
-			}
-		default:
-			return fmt.Errorf("unknown category: %s", input.Category)
+	switch input.Category {
+	case "unit":
+		var unitPayload models.CreateUnitsPayload
+		if err := json.Unmarshal(input.Payload, &unitPayload); err != nil {
+			return fmt.Errorf("bad request: %w", err)
+		}
+		if unitPayload.ImageURL != nil {
+			return s.submissionStore.CreateWithImageURL(ctx, userID, input)
+		}
+		return s.submissionStore.Create(ctx, userID, input)
+	case "venue":
+		var venuePayload *models.CreateVenuePayload
+		if err := json.Unmarshal(input.Payload, &venuePayload); err != nil {
+			return fmt.Errorf("bad request: %w", err)
+		}
+		return s.submissionStore.Create(ctx, userID, input)
+	default:
+		return fmt.Errorf("unknown category: %s", input.Category)
 	}
-	
-	return s.submissionStore.Create(ctx, userID, input)
 }
 
 func (s *SubmissionService) ListSubmissions(ctx context.Context, status string) (*models.ListSubmissionsResponse, error) {
@@ -55,7 +58,7 @@ func (s *SubmissionService) GetByID(ctx context.Context, id uuid.UUID) (*models.
 	return s.submissionStore.GetByID(ctx, id)
 }
 
-func (s *SubmissionService) GetImageByID(ctx context.Context, id uuid.UUID) ([]byte, error) {
+func (s *SubmissionService) GetImageByID(ctx context.Context, id uuid.UUID) (*stores.ImageResult, error) {
 	return s.submissionStore.GetImageByID(ctx, id)
 }
 
