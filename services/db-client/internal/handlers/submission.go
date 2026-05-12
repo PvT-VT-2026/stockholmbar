@@ -5,8 +5,8 @@ import (
 	"db-client/internal/models"
 	"db-client/internal/services"
 	"encoding/json"
-	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"os"
 	"strconv"
@@ -52,7 +52,7 @@ func (h *SubmissionHandler) CreateSubmission(w http.ResponseWriter, r *http.Requ
 	// it indicates a frontend issue.
 	var input models.CreateSubmissionRequest
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-		fmt.Printf("SubmissionHandler.CreateSubmission: %v", err)
+		log.Printf("SubmissionHandler.CreateSubmission: %v", err)
 		http.Error(w, "invalid request body", http.StatusBadRequest)
 		return
 	}
@@ -64,7 +64,7 @@ func (h *SubmissionHandler) CreateSubmission(w http.ResponseWriter, r *http.Requ
 	}
 
 	if err := h.service.CreateSubmission(r.Context(), userID, input); err != nil {
-		fmt.Printf("SubmissionHandler.CreateSubmission: %v", err)
+		log.Printf("SubmissionHandler.CreateSubmission: %v", err)
         http.Error(w, "failed to create submission", http.StatusInternalServerError)
         return
     }
@@ -81,14 +81,14 @@ func (h *SubmissionHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 
 	submissionID, err := uuid.Parse(r.PathValue("id"))
     if err != nil {
-		fmt.Printf("SubmissionHandler.GetByID: %v", err)
+		log.Printf("SubmissionHandler.GetByID: %v", err)
         http.Error(w, "invalid id parameter", http.StatusBadRequest)
         return
     }
 
 	submission, err := h.service.GetByID(r.Context(), submissionID)
 	if err != nil {
-		fmt.Printf("SubmissionHandler.GetByID: %v", err)
+		log.Printf("SubmissionHandler.GetByID: %v", err)
 		http.Error(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
@@ -108,14 +108,14 @@ func (h *SubmissionHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 func (h *SubmissionHandler) GetImageByID(w http.ResponseWriter, r *http.Request) {
 	submissionID, err := uuid.Parse(r.PathValue("id"))
 	if err != nil {
-		fmt.Printf("SubmissionHandler.GetImageByID: %v", err)
+		log.Printf("SubmissionHandler.GetImageByID: %v", err)
 		http.Error(w, "invalid id parameter", http.StatusBadRequest)
 		return
 	}
 
 	result, err := h.service.GetImageByID(r.Context(), submissionID)
 	if err != nil {
-		fmt.Printf("SubmissionHandler.GetImageByID: %v", err)
+		log.Printf("SubmissionHandler.GetImageByID: %v", err)
 		http.Error(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
@@ -141,7 +141,7 @@ func (h *SubmissionHandler) GetImageByID(w http.ResponseWriter, r *http.Request)
 func (h *SubmissionHandler) GetOldestPending(w http.ResponseWriter, r *http.Request) {
 	submission, err := h.service.GetOldestPending(r.Context())
 	if err != nil {
-		fmt.Printf("SubmissionHandler.GetOldestPending: %v", err)
+		log.Printf("SubmissionHandler.GetOldestPending: %v", err)
 		http.Error(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
@@ -169,7 +169,7 @@ func (h *SubmissionHandler) ListSubmissions(w http.ResponseWriter, r *http.Reque
 
 	submissions, err := h.service.ListSubmissions(r.Context(), status)
 	if err != nil {
-		fmt.Printf("SubmissionHandler.ListSubmissions: %v", err)
+		log.Printf("SubmissionHandler.ListSubmissions: %v", err)
 		http.Error(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
@@ -182,14 +182,14 @@ func (h *SubmissionHandler) Accept(w http.ResponseWriter, r *http.Request) {
 	idParam := r.PathValue("id")
 	submissionID, err := uuid.Parse(idParam)
 	if err != nil {
-		fmt.Printf("SubmissionHandler.Accept: %v", err)
+		log.Printf("SubmissionHandler.Accept: %v", err)
 		http.Error(w, "invalid id parameter", http.StatusBadRequest)
 		return
 	}
 
 	err = h.service.Accept(r.Context(), submissionID)	
 	if err != nil {
-		fmt.Printf("SubmissionHandler.Accept: %v", err)
+		log.Printf("SubmissionHandler.Accept: %v", err)
 		http.Error(w, "internal server error", http.StatusInternalServerError)
 	}
 }
@@ -198,14 +198,14 @@ func (h *SubmissionHandler) Reject(w http.ResponseWriter, r *http.Request) {
 	idParam := r.PathValue("id")
 	submissionID, err := uuid.Parse(idParam)
 	if err != nil {
-		fmt.Printf("SubmissionHandler.Reject: %v", err)
+		log.Printf("SubmissionHandler.Reject: %v", err)
 		http.Error(w, "invalid id parameter", http.StatusBadRequest)
 		return
 	}
 	
 	err = h.service.Reject(r.Context(), submissionID)	
 	if err != nil {
-		fmt.Printf("SubmissionHandler.Reject: %v", err)
+		log.Printf("SubmissionHandler.Reject: %v", err)
 		http.Error(w, "internal server error", http.StatusInternalServerError)
 	}
 }

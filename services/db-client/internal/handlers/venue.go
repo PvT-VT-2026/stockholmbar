@@ -3,7 +3,7 @@ package handlers
 import (
 	"db-client/internal/stores"
 	"encoding/json"
-	"fmt"
+	"log"
 	"net/http"
 
 	"github.com/google/uuid"
@@ -24,14 +24,14 @@ func NewVenueHandler(s *stores.VenueStore) *VenueHandler {
 func (h *VenueHandler) GetByID(w http.ResponseWriter, r *http.Request) {
     id, err := uuid.Parse(r.PathValue("id"))
     if err != nil {
-		fmt.Printf("VenueHandler.GetByID: %v", err)
+		log.Printf("VenueHandler.GetByID: %v", err)
         http.Error(w, "invalid id", http.StatusBadRequest)
         return
     }
 
     venue, err := h.store.GetByID(r. Context(), id)
     if err != nil {
-		fmt.Printf("VenueHandler.GetByID: %v", err)
+		log.Printf("VenueHandler.GetByID: %v", err)
         http.Error(w, "internal server error", http.StatusInternalServerError)
         return
     }
