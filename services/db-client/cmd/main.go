@@ -7,11 +7,14 @@ import (
 	"db-client/internal/services"
 	"db-client/internal/stores"
 	"log"
+	"log/slog"
 	"net/http"
 	"os"
 )
 
 func main() {
+	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, nil)))
+
 	connString := os.Getenv("SUPABASE_CONN_STRING")
 	if connString == "" {
         panic("Failed to load supabase connection string")
