@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"db-client/internal/db"
+	"log"
 	"net/http"
 )
 
@@ -14,6 +15,7 @@ func NewHealthHandler(db *db.DBClient) *HealthHandler{
 }
 
 func (h *HealthHandler) Health(w http.ResponseWriter, r *http.Request) {
+	log.Println("HealthHandler.Health")
 	w.Header().Set("Content-Type", "application/json")
 	
 	if h.db.Ping() != nil {
