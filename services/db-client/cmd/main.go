@@ -3,6 +3,7 @@ package main
 import (
 	"db-client/internal/db"
 	"db-client/internal/handlers"
+	"db-client/internal/middleware"
 	"db-client/internal/services"
 	"db-client/internal/stores"
 	"log"
@@ -61,7 +62,7 @@ func main() {
 
     srv := &http.Server{
         Addr:    ":" + port,
-        Handler: mux,
+        Handler: middleware.RequestLogger(mux),
     }
 
     log.Println("Starting server on", port)
