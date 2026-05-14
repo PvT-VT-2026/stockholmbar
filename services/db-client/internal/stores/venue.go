@@ -121,7 +121,6 @@ type VenueListFilter struct {
     OnlyHappyHour bool
 }
 
-
 func (s *VenueStore) List(ctx context.Context, filter VenueListFilter) (*models.FilterVenuesResponse, error) {
 
     // Golang developers chose to represent mon-sat as 1-6, and sunday as 0 instead of 7.
@@ -201,7 +200,6 @@ func (s *VenueStore) List(ctx context.Context, filter VenueListFilter) (*models.
         %s
         `, businessHourFilter, happyHourJoin)
 
-
     conditions := []string{"v.deleted_at IS NULL"}
 
     // Category filter
@@ -216,7 +214,6 @@ func (s *VenueStore) List(ctx context.Context, filter VenueListFilter) (*models.
         for _, name := range *filter.BeverageNames {
             quoted = append(quoted,  fmt.Sprintf("'%s'", name))
         }
-        fmt.Println("DEBUG: ", quoted)
         conditions = append(conditions, fmt.Sprintf("be.name IN (%s)", strings.Join(quoted, ",")))
     }
 
@@ -234,8 +231,6 @@ func (s *VenueStore) List(ctx context.Context, filter VenueListFilter) (*models.
 
     query += "\nWHERE " + strings.Join(conditions, "\nAND ")
     query += "\nORDER BY v.id, pr.amount ASC"
-    
-    fmt.Println(query)
 
     rows, err := s.db.DB().QueryContext(ctx, query)
     if err != nil {

@@ -3,7 +3,6 @@ package handlers
 import (
 	"db-client/internal/stores"
 	"encoding/json"
-	"fmt"
 	"log"
 	"net/http"
 	"strconv"
@@ -61,7 +60,6 @@ func (h *VenueHandler) List(w http.ResponseWriter, r *http.Request) {
 
     beverageNames := r.URL.Query()["names"]  // Returns a slice
     if len(beverageNames) != 0 {
-        fmt.Println("DEBUG BEVERAGE PARAMETER:", beverageNames)
         filter.BeverageNames = &beverageNames
     }
 
