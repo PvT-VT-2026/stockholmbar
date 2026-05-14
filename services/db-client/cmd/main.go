@@ -46,7 +46,8 @@ func main() {
     // Client facing
     mux.HandleFunc("POST /submission/create", submissionHandler.CreateSubmission)   // Create a new submission
 	mux.HandleFunc("GET /database/venue/{id}", venueHandler.GetByID)                // Fetch all data for one venue, including location
-    
+    mux.HandleFunc("GET /database/venue/list", venueHandler.List)                // Fetch all for multiple venues, depending on query filter
+
     // Admin facing
 	mux.HandleFunc("GET /admin/health", healthHandler.Health)
     mux.HandleFunc("GET /admin/submission/next", submissionHandler.GetOldestPending)    // Fetches the oldest pending submission, meant for reviewing submissions in order of creation date
