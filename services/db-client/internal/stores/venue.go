@@ -3,7 +3,6 @@ package stores
 import (
 	"context"
 	"database/sql"
-	"db-client/internal/db"
 	"db-client/internal/models"
 	"errors"
 	"fmt"
@@ -11,29 +10,31 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type VenueStore struct {
-	db *db.DBClient
+	pool *pgxpool.Pool
 }
 
-func NewVenueStore(db *db.DBClient) *VenueStore {
-	return &VenueStore{db:db}
+func NewVenueStore(pool *pgxpool.Pool) *VenueStore {
+	return &VenueStore{pool:pool}
 }
 
 func (s *VenueStore) Create(ctx context.Context, input *models.CreateVenuePayload) (error) {
 
 	// This method inserts into multiple tables (venue & location). Instead of doing two separate insertions, we wrap them in a transaction
 	// so that if one fails, the other one rolls back as well. 
-    tx, err := s.db.DB().BeginTx(ctx, nil)
+    tx, err := s.pool.BeginTx(ctx, pgx.TxOptions{})
     if err != nil {
         return fmt.Errorf("Create: begin tx: %w", err)
     }
-    defer tx.Rollback()
+    defer tx.Rollback(ctx)
 
 	// Insert the location and get the auto generated id.
     var locationID uuid.UUID
-    err = tx.QueryRowContext(ctx, `
+    err = tx.QueryRow(ctx, `
         INSERT INTO location (street, area, city, country, zip, lat, lng)
         VALUES ($1, $2, $3, $4, $5, $6, $7)
     	RETURNING id
@@ -51,7 +52,7 @@ func (s *VenueStore) Create(ctx context.Context, input *models.CreateVenuePayloa
     }
 
 	// Insert the venue
-    _, err = tx.ExecContext(ctx, `
+    _, err = tx.Exec(ctx, `
         INSERT INTO venue (location_id, venue_chain_id, name)
         VALUES ($1, $2, $3)
     `,
@@ -64,7 +65,7 @@ func (s *VenueStore) Create(ctx context.Context, input *models.CreateVenuePayloa
     }
 
 	// Commit both insertions
-    if err := tx.Commit(); err != nil {
+    if err := tx.Commit(ctx); err != nil {
         return fmt.Errorf("Create: commit: %w", err)
     }
 
@@ -76,7 +77,7 @@ func (s *VenueStore) GetByID (ctx context.Context, id uuid.UUID) (*models.GetVen
     var venue models.GetVenueByIDResponse
     var location models.Location
 
-    err := s.db.DB().QueryRowContext(ctx, `
+    err := s.pool.QueryRow(ctx, `
         SELECT 
             v.id, 
             v.name, 
@@ -232,7 +233,7 @@ func (s *VenueStore) List(ctx context.Context, filter VenueListFilter) (*models.
     query += "\nWHERE " + strings.Join(conditions, "\nAND ")
     query += "\nORDER BY v.id, pr.amount ASC"
 
-    rows, err := s.db.DB().QueryContext(ctx, query)
+    rows, err := s.pool.Query(ctx, query)
     if err != nil {
         return nil, fmt.Errorf("VenueStore.List: %w", err)
     }
@@ -243,7 +244,7 @@ func (s *VenueStore) List(ctx context.Context, filter VenueListFilter) (*models.
 
 
 
-func createFilterVenuesResponse(rows *sql.Rows) (*models.FilterVenuesResponse, error) {
+func createFilterVenuesResponse(rows pgx.Rows) (*models.FilterVenuesResponse, error) {
     // Use a map to deduplicate venues by ID since we DISTINCT ON v.id in SQL,
     // but ordering by pr.amount means we still only get one row per venue.
     // The map preserves insertion order isn't guaranteed, so track order separately.

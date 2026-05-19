@@ -1,24 +1,25 @@
 package handlers
 
 import (
-	"db-client/internal/db"
-	"log"
+		"log"
 	"net/http"
+
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type HealthHandler struct {
-	db *db.DBClient
+	pool *pgxpool.Pool
 }
 
-func NewHealthHandler(db *db.DBClient) *HealthHandler{
-	return &HealthHandler{db: db}
+func NewHealthHandler(pool *pgxpool.Pool) *HealthHandler{
+	return &HealthHandler{pool: pool}
 }
 
 func (h *HealthHandler) Health(w http.ResponseWriter, r *http.Request) {
 	log.Println("HealthHandler.Health")
 	w.Header().Set("Content-Type", "application/json")
 	
-	if h.db.Ping() != nil {
+	if h.pool.Ping(r.Context()) != nil {
 		w.WriteHeader(http.StatusServiceUnavailable)
 		w.Write([]byte(`{"status":"bad"}`))
 		return

@@ -3,21 +3,22 @@ package stores
 import (
 	"context"
 	"database/sql"
-	"db-client/internal/db"
+	
 	"db-client/internal/models"
 	"encoding/json"
 	"errors"
 	"fmt"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type SubmissionStore struct {
-	db *db.DBClient
+	pool *pgxpool.Pool
 }
 
-func NewSubmissionStore(db *db.DBClient) *SubmissionStore {
-	return &SubmissionStore{db: db}
+func NewSubmissionStore(pool *pgxpool.Pool) *SubmissionStore {	return &SubmissionStore{pool: pool}
 }
 
 type ImageResult struct {
@@ -27,11 +28,11 @@ type ImageResult struct {
 
 func (s *SubmissionStore) Create(ctx context.Context, userID uuid.UUID, input models.CreateSubmissionRequest) error {
     
-    tx, err := s.db.DB().BeginTx(ctx, nil)
+    tx, err := s.pool.BeginTx(ctx, pgx.TxOptions{})
     if err != nil {
         return err
     }
-    defer tx.Rollback()
+    defer tx.Rollback(ctx)
     
     var imageBytes []byte
 
@@ -66,7 +67,7 @@ func (s *SubmissionStore) Create(ctx context.Context, userID uuid.UUID, input mo
 
     // Insert submission and fetch the generated id
     var submissionID uuid.UUID
-    err = tx.QueryRowContext(ctx,
+    err = tx.QueryRow(ctx,
         `INSERT INTO submission (submitted_by, category, status, payload, payload_hash)
 		VALUES ($1, $2, 'pending', $3, $4)
         RETURNING id`,
@@ -77,7 +78,7 @@ func (s *SubmissionStore) Create(ctx context.Context, userID uuid.UUID, input mo
 
     // Insert the image if one was provided
     if imageBytes != nil {
-        _, err := tx.ExecContext(ctx, 
+        _, err := tx.Exec(ctx, 
             `INSERT INTO submission_image (submission_id, data)
             VALUES ($1, $2)`,
         submissionID, imageBytes)
@@ -86,15 +87,15 @@ func (s *SubmissionStore) Create(ctx context.Context, userID uuid.UUID, input mo
         }
     }
     
-	return tx.Commit()
+	return tx.Commit(ctx)
 }
 
 func (s *SubmissionStore) CreateWithImageURL(ctx context.Context, userID uuid.UUID, input models.CreateSubmissionRequest) error {
-	tx, err := s.db.DB().BeginTx(ctx, nil)
+	tx, err := s.pool.BeginTx(ctx, pgx.TxOptions{})
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback()
+	defer tx.Rollback(ctx)
 
 	var unitPayload models.CreateUnitsPayload
 	if err := json.Unmarshal(input.Payload, &unitPayload); err != nil {
@@ -124,7 +125,7 @@ func (s *SubmissionStore) CreateWithImageURL(ctx context.Context, userID uuid.UU
 	}
 
 	var submissionID uuid.UUID
-	err = tx.QueryRowContext(ctx,
+	err = tx.QueryRow(ctx,
 		`INSERT INTO submission (submitted_by, category, status, payload, payload_hash)
 		VALUES ($1, $2, 'pending', $3, $4)
 		RETURNING id`,
@@ -133,14 +134,14 @@ func (s *SubmissionStore) CreateWithImageURL(ctx context.Context, userID uuid.UU
 		return fmt.Errorf("SubmissionStore.CreateWithImageURL: %w", err)
 	}
 
-	_, err = tx.ExecContext(ctx,
+	_, err = tx.Exec(ctx,
 		`INSERT INTO submission_image (submission_id, url) VALUES ($1, $2)`,
 		submissionID, imageURL)
 	if err != nil {
 		return fmt.Errorf("SubmissionStore.CreateWithImageURL: %w", err)
 	}
 
-	return tx.Commit()
+	return tx.Commit(ctx)
 }
 
 func (s *SubmissionStore) List(ctx context.Context, status string) (*models.ListSubmissionsResponse, error) {
@@ -156,7 +157,7 @@ func (s *SubmissionStore) List(ctx context.Context, status string) (*models.List
         args = append(args, status)
     }	
 
-	rows, err := s.db.DB().QueryContext(ctx, query, args...)
+	rows, err := s.pool.Query(ctx, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("SubmissionStore.List: %w", err)
 	}
@@ -181,7 +182,7 @@ func (s *SubmissionStore) List(ctx context.Context, status string) (*models.List
 func (s *SubmissionStore) GetByID(ctx context.Context, id uuid.UUID) (*models.Submission, error) {
     var submission models.Submission
     
-	err := s.db.DB().QueryRowContext(ctx, `
+	err := s.pool.QueryRow(ctx, `
         SELECT id, submitted_by, category, status, payload, reviewed_at, created_at
         FROM submission
         WHERE id = $1 AND deleted_at IS NULL
@@ -208,7 +209,7 @@ func (s *SubmissionStore) GetImageByID(ctx context.Context, id uuid.UUID) (*Imag
 	var data []byte
 	var url sql.NullString
 
-	err := s.db.DB().QueryRowContext(ctx, `
+	err := s.pool.QueryRow(ctx, `
         SELECT data, url FROM submission_image WHERE submission_id = $1
     `, id).Scan(&data, &url)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -224,7 +225,7 @@ func (s *SubmissionStore) GetImageByID(ctx context.Context, id uuid.UUID) (*Imag
 func (s *SubmissionStore) GetOldestPending(ctx context.Context) (*models.Submission, error) {
     var submission models.Submission
     
-	err := s.db.DB().QueryRowContext(ctx, `
+	err := s.pool.QueryRow(ctx, `
         SELECT id, submitted_by, category, status, payload, reviewed_at, created_at
         FROM submission
         WHERE status = 'pending' AND deleted_at IS NULL
@@ -251,7 +252,7 @@ func (s *SubmissionStore) GetOldestPending(ctx context.Context) (*models.Submiss
 
 
 func (s *SubmissionStore) UpdateStatus(ctx context.Context, id uuid.UUID, status string) error {
-	_, err := s.db.DB().ExecContext(ctx, `
+	_, err := s.pool.Exec(ctx, `
         UPDATE submission SET status = $1, reviewed_at = NOW() WHERE id = $2
     `, status, id)
     if err != nil {

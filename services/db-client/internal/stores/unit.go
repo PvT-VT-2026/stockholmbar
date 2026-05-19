@@ -3,20 +3,22 @@ package stores
 import (
 	"context"
 	"database/sql"
-	"db-client/internal/db"
+	
 	"db-client/internal/models"
 	"errors"
 	"fmt"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type UnitStore struct {
-	db *db.DBClient
+	pool *pgxpool.Pool
 }
 
-func NewUnitStore(db *db.DBClient) *UnitStore {
-	return &UnitStore{db: db}
+func NewUnitStore(pool *pgxpool.Pool) *UnitStore {
+	return &UnitStore{pool: pool}
 }
 
 
@@ -24,11 +26,11 @@ func NewUnitStore(db *db.DBClient) *UnitStore {
 // creates beverages if a unit does not have a corresponding beverage already.
 func (s *UnitStore) Create(ctx context.Context, input *models.CreateUnitsPayload) error {
 	// Wrap inserts into a transaction so that if one fails, they will all roll back.
-    tx, err := s.db.DB().BeginTx(ctx, nil)
+    tx, err := s.pool.BeginTx(ctx, pgx.TxOptions{})
     if err != nil {
         return fmt.Errorf("CreateUnits: begin tx: %w", err)
     }
-    defer tx.Rollback()
+    defer tx.Rollback(ctx)
 
 	// Iterate over every unit in the request. 
 	// For each unit:
@@ -38,7 +40,7 @@ func (s *UnitStore) Create(ctx context.Context, input *models.CreateUnitsPayload
 	//  - Insert a price record
 	for _, unit := range input.Units {
 		var beverageID *uuid.UUID
-		err := tx.QueryRowContext(ctx, `SELECT id FROM beverage WHERE name = $1 AND abv = $2`, unit.Name, unit.ABV).Scan(&beverageID)
+		err := tx.QueryRow(ctx, `SELECT id FROM beverage WHERE name = $1 AND abv = $2`, unit.Name, unit.ABV).Scan(&beverageID)
 		if errors.Is(err, sql.ErrNoRows) {
 			beverageID, err = s.createBeverage(ctx, tx, unit)
 			if err != nil {
@@ -65,16 +67,16 @@ func (s *UnitStore) Create(ctx context.Context, input *models.CreateUnitsPayload
 	}
 
 	// Commit the whole transaction
-	if err := tx.Commit(); err != nil {
+	if err := tx.Commit(ctx); err != nil {
 		return fmt.Errorf("CreateUnits: commit failed: %w", err)
 	}
 
 	return nil
 }	
 
-func (s *UnitStore) createBeverage(ctx context.Context, tx *sql.Tx, unit *models.UnitInput) (*uuid.UUID, error) {
+func (s *UnitStore) createBeverage(ctx context.Context, tx pgx.Tx, unit *models.UnitInput) (*uuid.UUID, error) {
 	var beverageID *uuid.UUID
-	err := tx.QueryRowContext(ctx, `
+	err := tx.QueryRow(ctx, `
         INSERT INTO beverage (name, abv)
         VALUES ($1, $2)
         RETURNING id
@@ -90,9 +92,9 @@ func (s *UnitStore) createBeverage(ctx context.Context, tx *sql.Tx, unit *models
 	return beverageID, nil
 }
 
-func (s *UnitStore) createUnit(ctx context.Context, tx *sql.Tx, unit *models.UnitInput, beverageID *uuid.UUID)	(*uuid.UUID, error) {
+func (s *UnitStore) createUnit(ctx context.Context, tx pgx.Tx, unit *models.UnitInput, beverageID *uuid.UUID)	(*uuid.UUID, error) {
 	var UnitID *uuid.UUID
-	err := tx.QueryRowContext(ctx, `
+	err := tx.QueryRow(ctx, `
         INSERT INTO unit (beverage_id, name, volume_ml, size, unit_type)
         VALUES ($1, $2, $3, $4, $5)
         RETURNING id
@@ -106,9 +108,9 @@ func (s *UnitStore) createUnit(ctx context.Context, tx *sql.Tx, unit *models.Uni
 	return UnitID, nil
 }
 
-func (s *UnitStore) createVenueUnit(ctx context.Context, tx *sql.Tx, venueID, unitID *uuid.UUID) (*uuid.UUID, error) {
+func (s *UnitStore) createVenueUnit(ctx context.Context, tx pgx.Tx, venueID, unitID *uuid.UUID) (*uuid.UUID, error) {
 	var venueUnitID *uuid.UUID
-	err := tx.QueryRowContext(ctx, `
+	err := tx.QueryRow(ctx, `
         INSERT INTO venue_unit (venue_id, unit_id)
         VALUES ($1, $2)
 		RETURNING id
@@ -122,8 +124,8 @@ func (s *UnitStore) createVenueUnit(ctx context.Context, tx *sql.Tx, venueID, un
 	return venueUnitID, nil
 }
 
-func (s *UnitStore) createPriceRecord(ctx context.Context, tx *sql.Tx, unit *models.UnitInput, venueUnitID *uuid.UUID)	error {
-	_, err := tx.ExecContext(ctx, `
+func (s *UnitStore) createPriceRecord(ctx context.Context, tx pgx.Tx, unit *models.UnitInput, venueUnitID *uuid.UUID)	error {
+	_, err := tx.Exec(ctx, `
         INSERT INTO price_record (venue_unit_id, currency, amount)
         VALUES ($1, $2, $3)
     `,
