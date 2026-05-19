@@ -3,6 +3,9 @@ const app = express();
 app.use(express.json());
 app.use(express.static('public'));
 
+const API_BASE = process.env.API_BASE_URL;
+const API_TOKEN = process.env.API_TOKEN;
+
 const submissions = [
   { id: 'abc-1', submitted_by: 'user-1', category: 'venue', status: 'pending',
     payload: { name: 'Foobar', street: 'Testgatan 1', city: 'Stockholm' },
@@ -35,7 +38,6 @@ app.post('/admin/submission/:id/reject', (req, res) => {
   res.json({ ok: true });
 });
 
-// Returnerar en platshållarbild
 app.get('/admin/submission/:id/image', (req, res) => {
   res.redirect(`https://picsum.photos/seed/${req.params.id}/400/300`);
 });
