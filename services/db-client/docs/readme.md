@@ -97,6 +97,78 @@ Example Response:
 }
 ```
 
+### GET /database/venue/list
+
+Fetches venues and related business hours, happy hours, location data, and unit data based on filter parameters. The frontend will use this endpoint to render venues in map/list format, based on active filters.
+
+Time is the only required parameter.
+
+Example requests:
+
+`/database/venue/list?time=17:00`
+Display all venues that are open at 17:00 today.
+
+`/database/venue/list?time=22:00&category=beer`
+Display all venues that are open at 22:00 today, and serve beer.
+
+`/database/venue/list?time=22:00&category=beer&happy_hour=true`
+Display all venues that are open at 22:00 today, and serve beer, and currently have happy hour.
+
+`/database/venue/list?time=16:00&category=wine&max_price=89`
+Display all venues that are open at 16:00 today, and serve wine for max 89 kr.
+
+`/database/venue/list?time=17:00&categoy=beer&max_price=90&happy_hour=true&names=Heineken`
+Display all venues that are open and have happy hour at 17:00 today, and serve Heineken for max 90 kr.
+
+`/database/venue/list?time=17:00&categoy=beer&names=Heineken&names=Spendrups Original&max_price=80`
+Display all venues that are open at 17, and serve either Heineken or Spendrups Original at max 80 kr.
+
+Example response:
+This is the response for a query that only returned one single venue.
+This venue is not a part of a chain. If it was, it would have an additional field like
+`"chain_name": "lion bar"`, below the venue name.
+
+Every venue returned by this endpoint also features a matched unit. This is the cheapest unit that matched the category filter. This unit is returned so that the map knows which price to put on each pin. If no category filter set, `matched_unit` will hold the cheapest unit on the whole menu, not taking the `unit_type` into account.
+
+**NOTE:** This endpoint does not return the whole menu, as that would create massive response objects. When a user clicks on a specific venue to see the whole menu, the frontend will need to call a separate endpoint to fetch all units tied to this venue.
+
+```json
+{
+  "venues": [
+    {
+      "id": "33333333-0000-0000-0000-000000000002",
+      "venue_name": "Pub Anchor",
+      "location": {
+        "street": "Kungsgatan 18",
+        "area": "Norrmalm",
+        "city": "Stockholm",
+        "country": "Sweden",
+        "zip": "111 35",
+        "lat": 59.3349,
+        "lng": 18.0632
+      },
+      "hours": {
+        "open_time": "12:00:00",
+        "closing_time": "01:00:00",
+        "has_happy_hour": true,
+        "happyhour_start": "16:00:00",
+        "happyhour_end": "18:00:00"
+      },
+      "matched_unit": {
+        "unit_name": "Heineken",
+        "beverage_name": "Heineken",
+        "unit_type": "beer",
+        "abv": 5,
+        "volume_ml": 330,
+        "size": "bottle",
+        "price": 69,
+        "description": "International premium lager"
+      }
+    }
+  ]
+}
+```
+
 ## Admin Endpoints
 
 ### GET /admin/health
