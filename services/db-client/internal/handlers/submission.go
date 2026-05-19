@@ -11,6 +11,7 @@ import (
 	"os"
 	"strconv"
 
+	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 )
 
@@ -79,7 +80,8 @@ func (h *SubmissionHandler) CreateSubmission(w http.ResponseWriter, r *http.Requ
 // Retrieves an entire submission, including payload, by id
 func (h *SubmissionHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 
-	submissionID, err := uuid.Parse(r.PathValue("id"))
+	id := chi.URLParam(r, "id")
+	submissionID, err := uuid.Parse(id)
     if err != nil {
 		log.Printf("SubmissionHandler.GetByID: %v", err)
         http.Error(w, "invalid id parameter", http.StatusBadRequest)
@@ -106,7 +108,8 @@ func (h *SubmissionHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 // For blob-stored images, serves binary data directly.
 // For storage-URL images, redirects to the Supabase Storage URL.
 func (h *SubmissionHandler) GetImageByID(w http.ResponseWriter, r *http.Request) {
-	submissionID, err := uuid.Parse(r.PathValue("id"))
+	id := chi.URLParam(r, "id")
+	submissionID, err := uuid.Parse(id)
 	if err != nil {
 		log.Printf("SubmissionHandler.GetImageByID: %v", err)
 		http.Error(w, "invalid id parameter", http.StatusBadRequest)
@@ -179,8 +182,8 @@ func (h *SubmissionHandler) ListSubmissions(w http.ResponseWriter, r *http.Reque
 }
 
 func (h *SubmissionHandler) Accept(w http.ResponseWriter, r *http.Request) {
-	idParam := r.PathValue("id")
-	submissionID, err := uuid.Parse(idParam)
+	id := chi.URLParam(r, "id")
+	submissionID, err := uuid.Parse(id)
 	if err != nil {
 		log.Printf("SubmissionHandler.Accept: %v", err)
 		http.Error(w, "invalid id parameter", http.StatusBadRequest)
@@ -195,8 +198,8 @@ func (h *SubmissionHandler) Accept(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *SubmissionHandler) Reject(w http.ResponseWriter, r *http.Request) {
-	idParam := r.PathValue("id")
-	submissionID, err := uuid.Parse(idParam)
+	id := chi.URLParam(r, "id")
+	submissionID, err := uuid.Parse(id)
 	if err != nil {
 		log.Printf("SubmissionHandler.Reject: %v", err)
 		http.Error(w, "invalid id parameter", http.StatusBadRequest)
