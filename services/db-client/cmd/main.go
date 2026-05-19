@@ -26,10 +26,23 @@ func main() {
 		panic("Failed to load supabase connection string")
 	}
 
-	dbClient, err := db.New(connString)
-	if err != nil {
-		panic("Failed to open connection to database: " + err.Error())
+	supabaseURL := os.Getenv("SUPABASE_URL")
+	if supabaseURL == "" {
+		panic("Failed to load supabase url")
 	}
+	// Default to 8081
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8081"
+	}
+
+	ctx := context.Background()
+	pool, err := db.NewPool(ctx, connString)
+	if err != nil {
+		panic(fmt.Sprintf("db: %s", err))
+	}
+	defer pool.Close()
+	
 
 	supabaseURL := os.Getenv("SUPABASE_URL")
 	if supabaseURL == "" {
@@ -50,15 +63,15 @@ func main() {
 	
 
 	// Initiate stores
-	submissionStore := stores.NewSubmissionStore(dbClient)
-	unitStore := stores.NewUnitStore(dbClient)
-	venueStore := stores.NewVenueStore(dbClient)
+	submissionStore := stores.NewSubmissionStore(pool)
+	unitStore := stores.NewUnitStore(pool)
+	venueStore := stores.NewVenueStore(pool)
 
 	// Initiate submission service
 	submissionService := services.NewSubmissionService(submissionStore, unitStore, venueStore)
 
 	// Initiate handlers
-	healthHandler := handlers.NewHealthHandler(dbClient)
+	healthHandler := handlers.NewHealthHandler(pool)
 	venueHandler := handlers.NewVenueHandler(venueStore)
 	submissionHandler := handlers.NewSubmissionHandler(submissionService)
 	// Unit handler no longer has any methods after moving insertion logic to the submission service.
