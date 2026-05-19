@@ -42,25 +42,7 @@ func main() {
 		panic(fmt.Sprintf("db: %s", err))
 	}
 	defer pool.Close()
-	
 
-	supabaseURL := os.Getenv("SUPABASE_URL")
-	if supabaseURL == "" {
-		panic("Failed to load supabase url")
-	}
-	// Default to 8081
-	port := os.Getenv("PORT")
-	if port == "" {
-		port = "8081"
-	}
-
-	ctx := context.Background()
-	pool, err := db.NewPool(ctx, connString)
-	if err != nil {
-		panic(fmt.Sprintf("db: %s", err))
-	}
-	defer pool.Close()
-	
 
 	// Initiate stores
 	submissionStore := stores.NewSubmissionStore(pool)
