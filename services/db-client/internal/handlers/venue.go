@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 )
 
@@ -24,14 +25,16 @@ func NewVenueHandler(s *stores.VenueStore) *VenueHandler {
 }
 
 func (h *VenueHandler) GetByID(w http.ResponseWriter, r *http.Request) {
-    id, err := uuid.Parse(r.PathValue("id"))
+
+    id := chi.URLParam(r, "id")
+    venueID, err := uuid.Parse(id)
     if err != nil {
 		log.Printf("VenueHandler.GetByID: %v", err)
         http.Error(w, "invalid id", http.StatusBadRequest)
         return
     }
 
-    venue, err := h.store.GetByID(r. Context(), id)
+    venue, err := h.store.GetByID(r. Context(), venueID)
     if err != nil {
 		log.Printf("VenueHandler.GetByID: %v", err)
         http.Error(w, "internal server error", http.StatusInternalServerError)
