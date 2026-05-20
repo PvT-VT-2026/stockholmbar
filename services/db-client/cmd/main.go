@@ -71,6 +71,11 @@ func main() {
 	// Mux has been replaced with chi for easier middleware management.
 	r := chi.NewRouter()
 	r.Use(cors.AllowAll().Handler)
+	r.Use(cors.Handler(cors.Options{
+		AllowedOrigins: []string{"*"},
+		AllowedMethods: []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowedHeaders: []string{"Accept", "Authorization", "Content-Type"},
+	}))
 	r.Use(middleware.RequestLogger)
 	
 
