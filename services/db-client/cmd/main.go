@@ -15,6 +15,7 @@ import (
 
 	"github.com/MicahParks/keyfunc/v3"
 	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/cors"
 )
 
 
@@ -69,6 +70,7 @@ func main() {
 
 	// Mux has been replaced with chi for easier middleware management.
 	r := chi.NewRouter()
+	r.Use(cors.AllowAll().Handler)
 	r.Use(middleware.RequestLogger)
 	
 
