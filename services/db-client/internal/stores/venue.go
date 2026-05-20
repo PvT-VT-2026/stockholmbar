@@ -269,8 +269,8 @@ func createFilterVenuesResponse(rows pgx.Rows) (*models.FilterVenuesResponse, er
             openTime  string
             closeTime string
 
-            happyHourStart *string
-            happyHourEnd   *string
+            happyHourStart *sql.NullString
+            happyHourEnd   *sql.NullString
 
             beverageName        string
             beverageDescription *string
@@ -313,8 +313,8 @@ func createFilterVenuesResponse(rows pgx.Rows) (*models.FilterVenuesResponse, er
             HasHappyHour: hasHappyHour,
         }
         if hasHappyHour {
-            hours.HappyHourStart = happyHourStart
-            hours.HappyHourEnd = happyHourEnd
+            hours.HappyHourStart = &happyHourStart.String
+            hours.HappyHourEnd = &happyHourEnd.String
         }
 
         venue := &models.FilteredVenue{
