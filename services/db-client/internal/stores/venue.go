@@ -269,8 +269,8 @@ func createFilterVenuesResponse(rows pgx.Rows) (*models.FilterVenuesResponse, er
             openTime  string
             closeTime string
 
-            happyHourStart string
-            happyHourEnd   string
+            happyHourStart *string
+            happyHourEnd   *string
 
             beverageName        string
             beverageDescription *string
@@ -306,7 +306,7 @@ func createFilterVenuesResponse(rows pgx.Rows) (*models.FilterVenuesResponse, er
         }
 
         // Build VenueHours
-        hasHappyHour := happyHourStart != "" && happyHourEnd != ""
+        hasHappyHour := happyHourStart != nil && happyHourEnd != nil
         hours := models.VenueHours{
             OpenTime:    openTime,
             ClosingTime: closeTime,

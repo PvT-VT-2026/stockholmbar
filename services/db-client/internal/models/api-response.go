@@ -40,8 +40,8 @@ type VenueHours struct {
     OpenTime        string   `json:"open_time"`
     ClosingTime     string   `json:"closing_time"`
     HasHappyHour    bool        `json:"has_happy_hour"`
-    HappyHourStart  string  `json:"happyhour_start,omitempty"`
-    HappyHourEnd    string  `json:"happyhour_end,omitempty"`
+    HappyHourStart  *string  `json:"happyhour_start,omitempty"`
+    HappyHourEnd    *string  `json:"happyhour_end,omitempty"`
 }
 
 type FilteredVenueLocation struct {
