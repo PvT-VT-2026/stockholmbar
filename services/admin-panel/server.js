@@ -2,83 +2,68 @@ const express = require('express');
 const app = express();
 app.use(express.json());
 app.use(express.static('public'));
+ 
+const API_BASE     = process.env.API_BASE_URL;
+const SUPABASE_URL = process.env.SUPABASE_URL;
+const API_TOKEN    = process.env.API_TOKEN;
+const ANON_KEY     = process.env.SUPABASE_ANON_KEY;
 
-const API_BASE  = process.env.API_BASE_URL;
-const API_TOKEN = process.env.API_TOKEN;
-
-if (!API_BASE || !API_TOKEN) {
-  console.warn('API_BASE_URL och/eller API_TOKEN saknas.');
+if (!API_BASE || !SUPABASE_URL || !API_TOKEN || !ANON_KEY) {
+  console.warn('Saknas miljövariabler: API_BASE_URL, SUPABASE_URL, API_TOKEN, SUPABASE_ANON_KEY');
 }
 
 const HEADERS = {
   'Authorization': `Bearer ${API_TOKEN}`,
   'apikey': API_TOKEN,
   'Content-Type': 'application/json',
-  'Prefer': 'return=representation',
 };
 
-async function supabase(res, path, { method = 'GET', body } = {}) {
+app.get('/api/config', (req, res) => {
+  res.json({ supabaseUrl: SUPABASE_URL, supabaseAnonKey: ANON_KEY });
+});
+
+async function proxy(res, path, { method = 'GET', body } = {}) {
   try {
-    const upstream = await fetch(`${API_BASE}/rest/v1${path}`, {
+    const upstream = await fetch(`${API_BASE}${path}`, {
       method,
       headers: HEADERS,
       ...(body ? { body: JSON.stringify(body) } : {}),
     });
- 
+
     const text = await upstream.text();
- 
+
     if (!upstream.ok) {
-      console.error(`Upstream ${method} /rest/v1${path} → ${upstream.status}:`, text);
+      console.error(`Upstream ${method} ${path} → ${upstream.status}:`, text);
       return res.status(upstream.status).json({ error: text });
     }
- 
-    return res.json(text ? JSON.parse(text) : {});
+
+    if (!text) return res.status(upstream.status).end();
+    return res.json(JSON.parse(text));
   } catch (err) {
     console.error('Proxy-fel:', err);
-    return res.status(502).json({ error: 'Kunde inte nå Supabase.' });
+    return res.status(502).json({ error: 'Kunde inte nå API.' });
   }
 }
 
 app.get('/admin/submission/list', (req, res) => {
-  const filter = req.query.status
-    ? `?status=eq.${req.query.status}&order=created_at.asc`
-    : '?order=created_at.asc';
-  supabase(res, `/submission${filter}`);
+  const qs = req.query.status ? `?status=${req.query.status}` : '';
+  proxy(res, `/admin/submission/list${qs}`);
 });
 
-app.get('/admin/submission/next', async (req, res) => {
-  try {
-    const upstream = await fetch(
-      `${API_BASE}/rest/v1/submission?status=eq.pending&order=created_at.asc&limit=1`,
-      { headers: HEADERS }
-    );
-    const text = await upstream.text();
-    if (!upstream.ok) return res.status(upstream.status).json({ error: text });
- 
-    const rows = JSON.parse(text);
-    if (!rows.length) return res.status(204).end();
-    res.json(rows[0]);
-  } catch (err) {
-    res.status(502).json({ error: 'Kunde inte nå Supabase.' });
-  }
+app.get('/admin/submission/next', (req, res) => {
+  proxy(res, '/admin/submission/next');
 });
 
 app.post('/admin/submission/:id/accept', (req, res) => {
-  supabase(res, `/submission?id=eq.${req.params.id}`, {
-    method: 'PATCH',
-    body: { status: 'accepted', reviewed_at: new Date().toISOString() },
-  });
+  proxy(res, `/admin/submission/${req.params.id}/accept`, { method: 'POST', body: req.body });
 });
 
 app.post('/admin/submission/:id/reject', (req, res) => {
-  supabase(res, `/submission?id=eq.${req.params.id}`, {
-    method: 'PATCH',
-    body: { status: 'rejected', reviewed_at: new Date().toISOString() },
-  });
+  proxy(res, `/admin/submission/${req.params.id}/reject`, { method: 'POST', body: req.body });
 });
 
 app.get('/admin/submission/:id/image', async (req, res) => {
-  const storageUrl = `${API_BASE}/storage/v1/object/public/submission/${req.params.id}`;
+  const storageUrl = `${API_BASE}/admin/submission/${req.params.id}/image`;
   try {
     const check = await fetch(storageUrl, { method: 'HEAD', headers: HEADERS });
     if (check.ok) return res.redirect(storageUrl);

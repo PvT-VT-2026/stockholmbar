@@ -17,14 +17,35 @@
       padding: 2rem 1rem;
     }
 
+    body.auth-loading { visibility: hidden; }
+
     .container { width: 100%; max-width: 680px; }
+
+    .top-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 1.5rem;
+    }
 
     h1 {
       font-size: 20px;
       font-weight: 500;
-      margin-bottom: 1.5rem;
       color: #1a1a18;
     }
+
+    .btn-logout {
+      font-size: 13px;
+      color: #888780;
+      background: none;
+      border: 0.5px solid #d8d6d0;
+      border-radius: 8px;
+      padding: 6px 12px;
+      cursor: pointer;
+      transition: opacity 0.15s;
+    }
+
+    .btn-logout:hover { opacity: 0.7; }
 
     .meta-row {
       display: flex;
@@ -97,7 +118,6 @@
     }
 
     .divider { border-top: 0.5px solid #d8d6d0; padding-top: 1rem; }
-
     .payload-label { font-size: 12px; color: #888780; margin-bottom: 8px; }
 
     pre {
@@ -126,25 +146,9 @@
     .btn:hover { opacity: 0.85; }
     .btn:active { transform: scale(0.98); }
 
-    .btn-accept {
-      background: #eaf3de;
-      color: #3b6d11;
-      border-color: #97c459;
-    }
-
-    .btn-reject {
-      background: #fcebeb;
-      color: #a32d2d;
-      border-color: #f09595;
-    }
-
-    .btn-skip {
-      padding: 10px 16px;
-      background: #fff;
-      color: #444441;
-      border-color: #c8c6c0;
-      flex: 0 0 auto;
-    }
+    .btn-accept { background: #eaf3de; color: #3b6d11; border-color: #97c459; }
+    .btn-reject { background: #fcebeb; color: #a32d2d; border-color: #f09595; }
+    .btn-skip   { padding: 10px 16px; background: #fff; color: #444441; border-color: #c8c6c0; flex: 0 0 auto; }
 
     .log { margin-top: 1.25rem; display: flex; flex-direction: column; gap: 6px; }
 
@@ -159,10 +163,9 @@
 
     .log-entry.accept { background: #eaf3de; color: #3b6d11; }
     .log-entry.reject { background: #fcebeb; color: #a32d2d; }
-
-    .log-entry .log-id   { font-family: "SF Mono","Fira Code",monospace; }
-    .log-entry .log-cat  { opacity: 0.7; }
-    .log-entry .log-dec  { margin-left: auto; font-weight: 500; }
+    .log-entry .log-id  { font-family: "SF Mono","Fira Code",monospace; }
+    .log-entry .log-cat { opacity: 0.7; }
+    .log-entry .log-dec { margin-left: auto; font-weight: 500; }
 
     .done-msg {
       text-align: center;
@@ -172,9 +175,12 @@
     }
   </style>
 </head>
-<body>
+<body class="auth-loading">
 <div class="container">
-  <h1>Granska submissions</h1>
+  <div class="top-bar">
+    <h1>Granska submissions</h1>
+    <button class="btn-logout" onclick="logout()">Logga ut</button>
+  </div>
 
   <div class="meta-row">
     <div>
@@ -208,11 +214,7 @@
         <p class="payload-label">Payload</p>
         <div class="payload-row">
           <pre id="f-payload"></pre>
-          <img
-            id="f-image"
-            class="submission-image hidden"
-            alt="Submission"
-          />
+          <img id="f-image" class="submission-image hidden" alt="Submission" />
         </div>
       </div>
     </div>
@@ -227,106 +229,126 @@
   <div class="log" id="log"></div>
 </div>
 
+<script type="module">
+  import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
+
+  let supabase;
+
+  async function initAuth() {
+    const res = await fetch('/api/config');
+    const { supabaseUrl, supabaseAnonKey } = await res.json();
+    supabase = createClient(supabaseUrl, supabaseAnonKey);
+
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      window.location.href = '/login.html';
+      return;
+    }
+    document.body.classList.remove('auth-loading');
+    window._supabase = supabase;
+    init();
+  }
+
+  window.logout = async function () {
+    await supabase.auth.signOut();
+    window.location.href = '/login.html';
+  };
+  
+  initAuth();
+</script>
+
 <script>
+  let current = null;
+  let totalPending = 0;
+  let reviewed = 0;
 
-let current = null;
-let totalPending = 0;
-let reviewed = 0;
-
-async function init() {
-  try {
-    const res = await fetch('/admin/submission/list?status=pending');
-    const list = await res.json();
-    totalPending = list.length;
-  } catch (_) {}
-  loadNext();
-}
-
-function updateProgress() {
-  document.getElementById('idx').textContent   = reviewed;
-  document.getElementById('total').textContent = totalPending || '?';
-  document.getElementById('prog').style.width  =
-    totalPending > 0 ? (reviewed / totalPending * 100) + '%' : '0%';
-}
-
-async function loadNext() {
-  setLoading(true);
-  try {
-    const res = await fetch('/admin/submission/next');
-    if (!res.ok) { showDone(); return; }
-    current = await res.json();
-    render();
-  } catch (err) {
-    showError(err);
-  } finally {
-    setLoading(false);
-  }
-}
-
-function render() {
-  document.getElementById('f-id').textContent      = current.id;
-  document.getElementById('f-cat').textContent     = current.category;
-  document.getElementById('f-by').textContent      = current.submitted_by;
-  document.getElementById('f-at').textContent      = current.created_at;
-  document.getElementById('f-payload').textContent = JSON.stringify(current.payload, null, 2);
-  const img = document.getElementById('f-image');
-  img.className = 'submission-image';
-  img.src = `/admin/submission/${current.id}/image`;
-  img.onerror = () => { img.classList.add('hidden'); };
-  img.onload  = () => { img.classList.remove('hidden'); };
-
-  updateProgress();
-
-  const badge = document.getElementById('status-badge');
-  badge.className = 'badge badge-pending';
-  badge.textContent = 'Väntar';
-}
-
-async function decide(action) {
-  if (!current) return;
-  const id  = current.id;
-  const cat = current.category;
-
-  try {
-    const res = await fetch(`/admin/submission/${id}/${action}`, { method: 'POST' });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    reviewed++;
-    addLog(id, cat, action);
+  async function init() {
+    try {
+      const res = await fetch('/admin/submission/list?status=pending');
+      const list = await res.json();
+      totalPending = list.length;
+    } catch (_) {}
     loadNext();
-  } catch (err) {
-    showError(err);
   }
-}
 
-function skip() {
-  loadNext();
-}
+  function updateProgress() {
+    document.getElementById('idx').textContent   = reviewed;
+    document.getElementById('total').textContent = totalPending || '?';
+    document.getElementById('prog').style.width  =
+      totalPending > 0 ? (reviewed / totalPending * 100) + '%' : '0%';
+  }
 
-function addLog(id, cat, action) {
-  const log = document.getElementById('log');
-  const el  = document.createElement('div');
-  const ok  = action === 'accept';
-  el.className = 'log-entry ' + (ok ? 'accept' : 'reject');
-  el.innerHTML = `<span class="log-id">${id}</span><span class="log-cat">${cat}</span><span class="log-dec">${ok ? 'Accepterad' : 'Avslagen'}</span>`;
-  log.prepend(el);
-}
+  async function loadNext() {
+    setLoading(true);
+    try {
+      const res = await fetch('/admin/submission/next');
+      if (!res.ok) { showDone(); return; }
+      current = await res.json();
+      render();
+    } catch (err) {
+      showError(err);
+    } finally {
+      setLoading(false);
+    }
+  }
 
-function setLoading(on) {
-  document.getElementById('main-content').style.opacity = on ? '0.4' : '1';
-}
+  function render() {
+    document.getElementById('f-id').textContent      = current.id;
+    document.getElementById('f-cat').textContent     = current.category;
+    document.getElementById('f-by').textContent      = current.submitted_by;
+    document.getElementById('f-at').textContent      = current.created_at;
+    document.getElementById('f-payload').textContent = JSON.stringify(current.payload, null, 2);
+    const img = document.getElementById('f-image');
+    img.className = 'submission-image';
+    img.src = `/admin/submission/${current.id}/image`;
+    img.onerror = () => { img.classList.add('hidden'); };
+    img.onload  = () => { img.classList.remove('hidden'); };
+    updateProgress();
+    const badge = document.getElementById('status-badge');
+    badge.className = 'badge badge-pending';
+    badge.textContent = 'Väntar';
+  }
 
-function showDone() {
-  updateProgress();
-  document.getElementById('main-content').innerHTML =
-    '<div class="done-msg">Inga fler submissions att granska.</div>';
-}
+  async function decide(action) {
+    if (!current) return;
+    const id  = current.id;
+    const cat = current.category;
+    try {
+      const res = await fetch(`/admin/submission/${id}/${action}`, { method: 'POST' });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      reviewed++;
+      addLog(id, cat, action);
+      loadNext();
+    } catch (err) {
+      showError(err);
+    }
+  }
 
-function showError(err) {
-  document.getElementById('main-content').innerHTML =
-    `<div class="done-msg" style="color:#a32d2d;">Fel: ${err.message}</div>`;
-}
+  function skip() { loadNext(); }
+ 
+  function addLog(id, cat, action) {
+    const log = document.getElementById('log');
+    const el  = document.createElement('div');
+    const ok  = action === 'accept';
+    el.className = 'log-entry ' + (ok ? 'accept' : 'reject');
+    el.innerHTML = `<span class="log-id">${id}</span><span class="log-cat">${cat}</span><span class="log-dec">${ok ? 'Accepterad' : 'Avslagen'}</span>`;
+    log.prepend(el);
+  }
 
-init();
+  function setLoading(on) {
+    document.getElementById('main-content').style.opacity = on ? '0.4' : '1';
+  }
+
+  function showDone() {
+    updateProgress();
+    document.getElementById('main-content').innerHTML =
+      '<div class="done-msg">Inga fler submissions att granska.</div>';
+  }
+
+  function showError(err) {
+    document.getElementById('main-content').innerHTML =
+      `<div class="done-msg" style="color:#a32d2d;">Fel: ${err.message}</div>`;
+  }
 </script>
 </body>
 </html>
