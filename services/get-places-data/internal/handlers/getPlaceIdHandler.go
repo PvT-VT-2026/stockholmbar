@@ -3,6 +3,8 @@ package handlers
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
+	"io"
 	"net/http"
 	"get-places-data/internal/models"
 )
@@ -28,7 +30,7 @@ func getPlaceIds(name string, apiKey string) ([]models.SearchResultItem, error) 
 	client := &http.Client{}
 	searchURL := "https://places.googleapis.com/v1/places:searchText"
 
-	reqBody, _ := json.Marshal(models.PlaceSearchRequest{TextQuery: name})
+	reqBody, _ := json.Marshal(models.PlaceSearchRequest{TextQuery: name, LanguageCode: "en"})
 	req, err := http.NewRequest("POST", searchURL, bytes.NewBuffer(reqBody))
 	if err != nil {
 		return nil, err
@@ -43,6 +45,11 @@ func getPlaceIds(name string, apiKey string) ([]models.SearchResultItem, error) 
 		return nil, err
 	}
 	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("Google Places searchText returned %d: %s", resp.StatusCode, body)
+	}
 
 	var searchData models.PlaceSearchResponse
 	if err := json.NewDecoder(resp.Body).Decode(&searchData); err != nil {
