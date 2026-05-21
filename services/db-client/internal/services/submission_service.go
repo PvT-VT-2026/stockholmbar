@@ -10,6 +10,7 @@ import (
 	"log"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/google/uuid"
 )
@@ -190,6 +191,12 @@ var dayNameToWeekday = map[string]int16{
 func parseOpeningHours(descriptions []string) []models.BusinessHours {
 	var hours []models.BusinessHours
 	for _, desc := range descriptions {
+		desc = strings.Map(func(r rune) rune {
+			if unicode.IsSpace(r) {
+				return ' '
+			}
+			return r
+		}, desc)
 		parts := strings.SplitN(desc, ": ", 2)
 		if len(parts) != 2 {
 			log.Printf("parseOpeningHours: no ': ' separator in %q", desc)
