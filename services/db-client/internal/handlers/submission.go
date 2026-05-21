@@ -2,13 +2,13 @@ package handlers
 
 import (
 	"bytes"
+	"db-client/internal/middleware"
 	"db-client/internal/models"
 	"db-client/internal/services"
 	"encoding/json"
 	"io"
 	"log"
 	"net/http"
-	"os"
 	"strconv"
 
 	"github.com/go-chi/chi/v5"
@@ -32,21 +32,15 @@ func NewSubmissionHandler(s *services.SubmissionService) *SubmissionHandler {
 // Expects a CreateSubmissionRequest struct as json in the request body, and a user id to be passed
 // in the context.
 func (h *SubmissionHandler) CreateSubmission(w http.ResponseWriter, r *http.Request) {
-	// The user UUID should come from some auth middleware and should be sent in the request context
-	// and be handled like this:
-		// userID, ok := r.Context().Value("userID").(uuid.UUID)
-		// if !ok {
-		// 	    http.Error(w, "unauthorized", http.StatusUnauthorized)
-		// 	    return
-		// }
-	// For now, the .env file needs a user uuid which points to a user in the supabase project. 
-	stringID := os.Getenv("TEST_USER_UUID")
+	stringID := middleware.UserIDFromContext(r.Context())
 	if stringID == "" {
-        panic("Failed to load a test user id")
-    }
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
 	userID, err := uuid.Parse(stringID)
 	if err != nil {
-		panic("Failed to parse test user id")
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
 	}
 
 	// If the request body can not be parsed into a CreateSubmissionRequest struct,
