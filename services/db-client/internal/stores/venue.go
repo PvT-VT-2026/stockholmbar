@@ -114,6 +114,41 @@ func (s *VenueStore) GetByID (ctx context.Context, id uuid.UUID) (*models.GetVen
     return &venue, nil
 }
 
+func (s *VenueStore) GetMenuByVenueID(ctx context.Context, id uuid.UUID) ([]models.VenueMenuItem, error) {
+	rows, err := s.pool.Query(ctx, `
+		SELECT vu.id, b.name, b.abv, u.name, u.unit_type, u.volume_ml, u.size,
+		       pr.currency, pr.amount, pr.recorded_at
+		FROM venue_unit vu
+		JOIN unit u ON u.id = vu.unit_id AND u.deleted_at IS NULL
+		JOIN beverage b ON b.id = u.beverage_id AND b.deleted_at IS NULL
+		LEFT JOIN LATERAL (
+		    SELECT currency, amount, recorded_at FROM price_record
+		    WHERE venue_unit_id = vu.id AND deleted_at IS NULL
+		    ORDER BY recorded_at DESC LIMIT 1
+		) pr ON true
+		WHERE vu.venue_id = $1 AND vu.deleted_at IS NULL
+		ORDER BY b.name, u.volume_ml NULLS LAST
+	`, id)
+	if err != nil {
+		return nil, fmt.Errorf("VenueStore.GetMenuByVenueID: %w", err)
+	}
+	defer rows.Close()
+
+	items := []models.VenueMenuItem{}
+	for rows.Next() {
+		var m models.VenueMenuItem
+		if err := rows.Scan(
+			&m.VenueUnitID, &m.BeverageName, &m.ABV, &m.UnitName,
+			&m.UnitType, &m.VolumeMl, &m.Size,
+			&m.Currency, &m.Amount, &m.RecordedAt,
+		); err != nil {
+			return nil, fmt.Errorf("VenueStore.GetMenuByVenueID scan: %w", err)
+		}
+		items = append(items, m)
+	}
+	return items, rows.Err()
+}
+
 type VenueListFilter struct {
     Category *string
     BeverageNames *[]string

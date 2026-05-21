@@ -66,6 +66,27 @@ type MatchedUnit struct {
 }
 
 
+// Returned by GET /database/venues/{id}/menu
+type VenueMenuResponse struct {
+	ID       string          `json:"id"`
+	Name     string          `json:"name"`
+	Location Location        `json:"location"`
+	Menu     []VenueMenuItem `json:"menu"`
+}
+
+type VenueMenuItem struct {
+	VenueUnitID  string     `json:"venue_unit_id"`
+	BeverageName string     `json:"beverage_name"`
+	ABV          *float64   `json:"abv,omitempty"`
+	UnitName     string     `json:"unit_name"`
+	UnitType     *string    `json:"unit_type,omitempty"`
+	VolumeMl     *int       `json:"volume_ml,omitempty"`
+	Size         *string    `json:"size,omitempty"`
+	Currency     *string    `json:"currency,omitempty"`
+	Amount       *float64   `json:"amount,omitempty"`
+	RecordedAt   *time.Time `json:"recorded_at,omitempty"`
+}
+
 // Returned when requesting a specific venue by id,
 // contains joined location data as well
 type GetVenueByIDResponse struct {

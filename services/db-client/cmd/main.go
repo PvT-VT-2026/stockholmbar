@@ -92,6 +92,7 @@ func main() {
 	r.Route("/database", func(r chi.Router) {
 		r.Route("/venues", func(r chi.Router) {
 			r.Get("/{id}", venueHandler.GetByID)
+			r.Get("/{id}/menu", venueHandler.GetMenu)
 			r.Get("/list", venueHandler.List)
 		})
 	})
