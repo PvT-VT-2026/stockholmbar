@@ -50,6 +50,7 @@ func main() {
 	submissionStore := stores.NewSubmissionStore(pool)
 	unitStore := stores.NewUnitStore(pool)
 	venueStore := stores.NewVenueStore(pool)
+	beverageStore := stores.NewBeverageStore(pool)
 
 	// Initiate places client if URL is configured
 	var placesClient *clients.PlacesClient
@@ -66,6 +67,7 @@ func main() {
 	healthHandler := handlers.NewHealthHandler(pool)
 	venueHandler := handlers.NewVenueHandler(venueStore)
 	submissionHandler := handlers.NewSubmissionHandler(submissionService)
+	beverageHandler := handlers.NewBeverageHandler(beverageStore)
 	// Unit handler no longer has any methods after moving insertion logic to the submission service.
 	// Will implement some getter methods, like fetching every unit for a specific venue id etc.
 	// unitHandler := handlers.NewUnitHandler(unitStore)
@@ -101,6 +103,9 @@ func main() {
 			r.Get("/{id}", venueHandler.GetByID)
 			r.Get("/{id}/menu", venueHandler.GetMenu)
 			r.Get("/list", venueHandler.List)
+		})
+		r.Route("/beverages", func(r chi.Router) {
+			r.Get("/list", beverageHandler.List)
 		})
 	})
 

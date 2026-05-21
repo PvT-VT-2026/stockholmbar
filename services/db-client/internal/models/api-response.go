@@ -98,3 +98,15 @@ type GetVenueByIDResponse struct {
     UpdatedAt   time.Time  `json:"updated_at"`
     DeletedAt   *time.Time `json:"deleted_at,omitempty"`
 }
+
+
+
+
+type BeverageListResponse struct {
+    Beverages   []BeverageWithCategory  `json:"beverages"`
+}
+
+type BeverageWithCategory struct {
+    Name        string `json:"name"`
+    Category    string `json:"category"`
+}
