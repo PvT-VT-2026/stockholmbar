@@ -192,10 +192,12 @@ func parseOpeningHours(descriptions []string) []models.BusinessHours {
 	for _, desc := range descriptions {
 		parts := strings.SplitN(desc, ": ", 2)
 		if len(parts) != 2 {
+			log.Printf("parseOpeningHours: no ': ' separator in %q", desc)
 			continue
 		}
 		dayOfWeek, ok := dayNameToWeekday[parts[0]]
 		if !ok {
+			log.Printf("parseOpeningHours: unrecognized day name %q in %q", parts[0], desc)
 			continue
 		}
 
@@ -213,14 +215,17 @@ func parseOpeningHours(descriptions []string) []models.BusinessHours {
 			// en dash (U+2013) is the separator Google Places uses
 			timeParts := strings.SplitN(timeRange, "–", 2)
 			if len(timeParts) != 2 {
+				log.Printf("parseOpeningHours: no en-dash separator in time range %q (bytes: %x)", timeRange, []byte(timeRange))
 				continue
 			}
 			openTime, err := parseTime(strings.TrimSpace(timeParts[0]))
 			if err != nil {
+				log.Printf("parseOpeningHours: open time parse error in %q: %v", desc, err)
 				continue
 			}
 			closeTime, err := parseTime(strings.TrimSpace(timeParts[1]))
 			if err != nil {
+				log.Printf("parseOpeningHours: close time parse error in %q: %v", desc, err)
 				continue
 			}
 			h.OpenTime = &openTime
