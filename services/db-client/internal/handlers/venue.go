@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"db-client/internal/models"
 	"db-client/internal/stores"
 	"encoding/json"
 	"log"
@@ -51,8 +52,46 @@ func (h *VenueHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 }
 
 
+func (h *VenueHandler) GetMenu(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	venueID, err := uuid.Parse(id)
+	if err != nil {
+		log.Printf("VenueHandler.GetMenu: %v", err)
+		http.Error(w, "invalid id", http.StatusBadRequest)
+		return
+	}
+
+	venue, err := h.store.GetByID(r.Context(), venueID)
+	if err != nil {
+		log.Printf("VenueHandler.GetMenu: %v", err)
+		http.Error(w, "internal server error", http.StatusInternalServerError)
+		return
+	}
+	if venue == nil {
+		http.Error(w, "not found", http.StatusNotFound)
+		return
+	}
+
+	menu, err := h.store.GetMenuByVenueID(r.Context(), venueID)
+	if err != nil {
+		log.Printf("VenueHandler.GetMenu: %v", err)
+		http.Error(w, "internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	resp := models.VenueMenuResponse{
+		ID:       venue.ID,
+		Name:     venue.Name,
+		Location: venue.Location,
+		Menu:     menu,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(resp)
+}
+
 // Builds a filter object based on query parameters and hands it to the venueStore, which
-// will fetch venues accordingly. 
+// will fetch venues accordingly.
 func (h *VenueHandler) List(w http.ResponseWriter, r *http.Request) {
     filter := stores.VenueListFilter{}
 
