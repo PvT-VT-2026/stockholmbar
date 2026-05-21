@@ -1,9 +1,10 @@
 package handlers
 
 import (
-    "encoding/json"
-    "fmt"
-    "net/http" 
+	"encoding/json"
+	"fmt"
+	"io"
+	"net/http"
 	"get-places-data/internal/models"
 )
 
@@ -26,7 +27,7 @@ func (env *APIEnv) GetPlaceInfoHandler(w http.ResponseWriter, r *http.Request) {
 
 func getPlaceInfo(placeID string, apiKey string) (*models.PlaceInfo, error) {
 	client := &http.Client{}
-	detailsURL := fmt.Sprintf("https://places.googleapis.com/v1/places/%s", placeID)
+	detailsURL := fmt.Sprintf("https://places.googleapis.com/v1/places/%s?languageCode=en", placeID)
 
 	req, err := http.NewRequest("GET", detailsURL, nil)
 	if err != nil {
@@ -41,6 +42,11 @@ func getPlaceInfo(placeID string, apiKey string) (*models.PlaceInfo, error) {
 		return nil, err
 	}
 	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("Google Places place details returned %d: %s", resp.StatusCode, body)
+	}
 
 	var details models.PlaceDetailsResponse
 	if err := json.NewDecoder(resp.Body).Decode(&details); err != nil {

@@ -1,7 +1,8 @@
 package models
 
 type PlaceSearchRequest struct {
-	TextQuery string `json:"textQuery"`
+	TextQuery    string `json:"textQuery"`
+	LanguageCode string `json:"languageCode"`
 }
 
 type PlaceSearchResponse struct {
