@@ -164,7 +164,7 @@ func (s *SubmissionService) enrichWithBusinessHours(ctx context.Context, venueID
 
 	hours := parseOpeningHours(placeInfo.OpeningHours)
 	if len(hours) == 0 {
-		return fmt.Errorf("failed to parse opening hours for place %s", results[0].ID)
+		return fmt.Errorf("failed to parse opening hours for place %s, raw strings: %v", results[0].ID, placeInfo.OpeningHours)
 	}
 
 	return s.venueStore.CreateBusinessHours(ctx, venueID, hours)
