@@ -178,6 +178,13 @@ var dayNameToWeekday = map[string]int16{
 	"Friday":    5,
 	"Saturday":  6,
 	"Sunday":    0,
+	"Måndag":    1,
+	"Tisdag":    2,
+	"Onsdag":    3,
+	"Torsdag":   4,
+	"Fredag":    5,
+	"Lördag":    6,
+	"Söndag":    0,
 }
 
 func parseOpeningHours(descriptions []string) []models.BusinessHours {
@@ -226,9 +233,11 @@ func parseOpeningHours(descriptions []string) []models.BusinessHours {
 }
 
 func parseTime(s string) (string, error) {
-	t, err := time.Parse("3:04 PM", s)
-	if err != nil {
-		return "", err
+	if t, err := time.Parse("3:04 PM", s); err == nil {
+		return t.Format("15:04"), nil
 	}
-	return t.Format("15:04"), nil
+	if t, err := time.Parse("15:04", s); err == nil {
+		return t.Format("15:04"), nil
+	}
+	return "", fmt.Errorf("unrecognized time format: %q", s)
 }
