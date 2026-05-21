@@ -2,10 +2,14 @@ package services
 
 import (
 	"context"
+	"db-client/internal/clients"
 	"db-client/internal/models"
 	"db-client/internal/stores"
 	"encoding/json"
 	"fmt"
+	"log"
+	"strings"
+	"time"
 
 	"github.com/google/uuid"
 )
@@ -14,10 +18,11 @@ type SubmissionService struct {
 	submissionStore *stores.SubmissionStore
 	unitStore       *stores.UnitStore
 	venueStore      *stores.VenueStore
+	placesClient    *clients.PlacesClient
 }
 
-func NewSubmissionService(sub *stores.SubmissionStore, unit *stores.UnitStore, venue *stores.VenueStore) *SubmissionService {
-	return &SubmissionService{submissionStore: sub, unitStore: unit, venueStore: venue}
+func NewSubmissionService(sub *stores.SubmissionStore, unit *stores.UnitStore, venue *stores.VenueStore, places *clients.PlacesClient) *SubmissionService {
+	return &SubmissionService{submissionStore: sub, unitStore: unit, venueStore: venue, placesClient: places}
 }
 
 // Before a submission is passed to the submissionStore in order to create a submission entry
@@ -91,10 +96,16 @@ func (s *SubmissionService) Accept(ctx context.Context, submissionID uuid.UUID) 
 		if err := json.Unmarshal(submission.Payload, &venuePayload); err != nil {
 			return fmt.Errorf("unable to parse venue payload: %w", err)
 		}
-        if err := s.venueStore.Create(ctx, &venuePayload); err != nil {
+		venueID, err := s.venueStore.Create(ctx, &venuePayload)
+		if err != nil {
 			return err
 		}
-	
+		if s.placesClient != nil {
+			if err := s.enrichWithBusinessHours(ctx, venueID, &venuePayload); err != nil {
+				log.Printf("SubmissionService.Accept: could not fetch business hours for venue %s: %v", venueID, err)
+			}
+		}
+
 	default:
 		return fmt.Errorf("unknown submission category: %s", submission.Category)
     }
@@ -133,3 +144,91 @@ func (s *SubmissionService) Reject(ctx context.Context, submissionID uuid.UUID) 
 //     //     return s.venues.Create(ctx, ...)
 //     // }
 // }
+
+func (s *SubmissionService) enrichWithBusinessHours(ctx context.Context, venueID uuid.UUID, venue *models.CreateVenuePayload) error {
+	results, err := s.placesClient.FindPlace(venue.Name + ", " + venue.City)
+	if err != nil {
+		return err
+	}
+	if len(results) == 0 {
+		return fmt.Errorf("no Google Places results for %q", venue.Name)
+	}
+
+	placeInfo, err := s.placesClient.GetPlaceInfo(results[0].ID)
+	if err != nil {
+		return err
+	}
+	if len(placeInfo.OpeningHours) == 0 {
+		return fmt.Errorf("no opening hours returned for place %s", results[0].ID)
+	}
+
+	hours := parseOpeningHours(placeInfo.OpeningHours)
+	if len(hours) == 0 {
+		return fmt.Errorf("failed to parse opening hours for place %s", results[0].ID)
+	}
+
+	return s.venueStore.CreateBusinessHours(ctx, venueID, hours)
+}
+
+var dayNameToWeekday = map[string]int16{
+	"Monday":    1,
+	"Tuesday":   2,
+	"Wednesday": 3,
+	"Thursday":  4,
+	"Friday":    5,
+	"Saturday":  6,
+	"Sunday":    0,
+}
+
+func parseOpeningHours(descriptions []string) []models.BusinessHours {
+	var hours []models.BusinessHours
+	for _, desc := range descriptions {
+		parts := strings.SplitN(desc, ": ", 2)
+		if len(parts) != 2 {
+			continue
+		}
+		dayOfWeek, ok := dayNameToWeekday[parts[0]]
+		if !ok {
+			continue
+		}
+
+		h := models.BusinessHours{DayOfWeek: dayOfWeek}
+		timeRange := parts[1]
+
+		switch timeRange {
+		case "Closed":
+			h.IsClosed = true
+		case "Open 24 hours":
+			open, close := "00:00", "23:59"
+			h.OpenTime = &open
+			h.CloseTime = &close
+		default:
+			// en dash (U+2013) is the separator Google Places uses
+			timeParts := strings.SplitN(timeRange, "–", 2)
+			if len(timeParts) != 2 {
+				continue
+			}
+			openTime, err := parseTime(strings.TrimSpace(timeParts[0]))
+			if err != nil {
+				continue
+			}
+			closeTime, err := parseTime(strings.TrimSpace(timeParts[1]))
+			if err != nil {
+				continue
+			}
+			h.OpenTime = &openTime
+			h.CloseTime = &closeTime
+		}
+
+		hours = append(hours, h)
+	}
+	return hours
+}
+
+func parseTime(s string) (string, error) {
+	t, err := time.Parse("3:04 PM", s)
+	if err != nil {
+		return "", err
+	}
+	return t.Format("15:04"), nil
+}

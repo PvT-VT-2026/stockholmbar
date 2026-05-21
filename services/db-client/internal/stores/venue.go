@@ -22,13 +22,13 @@ func NewVenueStore(pool *pgxpool.Pool) *VenueStore {
 	return &VenueStore{pool:pool}
 }
 
-func (s *VenueStore) Create(ctx context.Context, input *models.CreateVenuePayload) (error) {
+func (s *VenueStore) Create(ctx context.Context, input *models.CreateVenuePayload) (uuid.UUID, error) {
 
 	// This method inserts into multiple tables (venue & location). Instead of doing two separate insertions, we wrap them in a transaction
-	// so that if one fails, the other one rolls back as well. 
+	// so that if one fails, the other one rolls back as well.
     tx, err := s.pool.BeginTx(ctx, pgx.TxOptions{})
     if err != nil {
-        return fmt.Errorf("Create: begin tx: %w", err)
+        return uuid.Nil, fmt.Errorf("Create: begin tx: %w", err)
     }
     defer tx.Rollback(ctx)
 
@@ -48,28 +48,50 @@ func (s *VenueStore) Create(ctx context.Context, input *models.CreateVenuePayloa
         input.Lng,
     ).Scan(&locationID)
     if err != nil {
-        return fmt.Errorf("Create: insert location: %w", err)
+        return uuid.Nil, fmt.Errorf("Create: insert location: %w", err)
     }
 
-	// Insert the venue
-    _, err = tx.Exec(ctx, `
+	// Insert the venue and return its ID
+    var venueID uuid.UUID
+    err = tx.QueryRow(ctx, `
         INSERT INTO venue (location_id, venue_chain_id, name)
         VALUES ($1, $2, $3)
+        RETURNING id
     `,
         locationID,
         input.VenueChainID,
         input.Name,
-    )
+    ).Scan(&venueID)
     if err != nil {
-        return fmt.Errorf("Create: insert venue: %w", err)
+        return uuid.Nil, fmt.Errorf("Create: insert venue: %w", err)
     }
 
 	// Commit both insertions
     if err := tx.Commit(ctx); err != nil {
-        return fmt.Errorf("Create: commit: %w", err)
+        return uuid.Nil, fmt.Errorf("Create: commit: %w", err)
     }
 
-	return nil
+	return venueID, nil
+}
+
+func (s *VenueStore) CreateBusinessHours(ctx context.Context, venueID uuid.UUID, hours []models.BusinessHours) error {
+	tx, err := s.pool.BeginTx(ctx, pgx.TxOptions{})
+	if err != nil {
+		return fmt.Errorf("CreateBusinessHours: begin tx: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
+	for _, h := range hours {
+		_, err := tx.Exec(ctx, `
+			INSERT INTO business_hours (venue_id, day_of_week, open_time, close_time, is_closed)
+			VALUES ($1, $2, $3, $4, $5)
+		`, venueID, h.DayOfWeek, h.OpenTime, h.CloseTime, h.IsClosed)
+		if err != nil {
+			return fmt.Errorf("CreateBusinessHours: insert day %d: %w", h.DayOfWeek, err)
+		}
+	}
+
+	return tx.Commit(ctx)
 }
 
 // Returns a GetVenueByIDResponse, which contains all the data from the venue table as well as the location data

@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"db-client/internal/clients"
 	"db-client/internal/db"
 	"db-client/internal/handlers"
 	"db-client/internal/middleware"
@@ -50,8 +51,16 @@ func main() {
 	unitStore := stores.NewUnitStore(pool)
 	venueStore := stores.NewVenueStore(pool)
 
+	// Initiate places client if URL is configured
+	var placesClient *clients.PlacesClient
+	if placesURL := os.Getenv("GET_PLACES_DATA_URL"); placesURL != "" {
+		placesClient = clients.NewPlacesClient(placesURL)
+	} else {
+		log.Println("Warning: GET_PLACES_DATA_URL not set, venue business hours will not be auto-populated")
+	}
+
 	// Initiate submission service
-	submissionService := services.NewSubmissionService(submissionStore, unitStore, venueStore)
+	submissionService := services.NewSubmissionService(submissionStore, unitStore, venueStore, placesClient)
 
 	// Initiate handlers
 	healthHandler := handlers.NewHealthHandler(pool)
