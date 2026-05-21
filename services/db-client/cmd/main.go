@@ -94,10 +94,8 @@ func main() {
 
 
 	r.Route("/submission", func(r chi.Router) {
-		r.Use(authMW)
-		r.Use(adminMW)
-		r.Post("/create", submissionHandler.CreateSubmission)
-	}) 
+		r.With(authMW).Post("/create", submissionHandler.CreateSubmission)
+	})
 	r.Route("/database", func(r chi.Router) {
 		r.Route("/venues", func(r chi.Router) {
 			r.Get("/{id}", venueHandler.GetByID)
