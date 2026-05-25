@@ -12,6 +12,11 @@ import (
 	"os"
 )
 
+var (
+    groqURL    = "https://api.groq.com/openai/v1/chat/completions"
+    httpClient = http.DefaultClient
+)
+
 // This http handler expects an image payload. Reads the image data and returns json.
 func HandleConvertImageToJSON(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
@@ -52,7 +57,7 @@ func getJsonFromMenuImage(imageData []byte) (string, error) {
 	}
 
 	fmt.Println("Executing request")
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := httpClient.Do(req)
 	if err != nil {
 		return "", fmt.Errorf("Failed to execute request: %s", err.Error())
 	}
@@ -121,7 +126,7 @@ func generateRequest(imageData []byte) (*http.Request, error) {
 		return nil, err
 	}
 
-	req, err := http.NewRequest("POST", "https://api.groq.com/openai/v1/chat/completions", bytes.NewBuffer(body))
+	req, err := http.NewRequest("POST", groqURL, bytes.NewBuffer(body))
 	if err != nil {
 		return nil, err
 	}
