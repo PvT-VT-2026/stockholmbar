@@ -4,9 +4,9 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"get-places-data/internal/models"
 	"io"
 	"net/http"
-	"get-places-data/internal/models"
 )
 
 func (env *APIEnv) GetPlaceIdsHandler(w http.ResponseWriter, r *http.Request) {
@@ -16,7 +16,7 @@ func (env *APIEnv) GetPlaceIdsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	results, err := getPlaceIds(name, env.GoogleAPIKey)
+	results, err := getPlaceIds(name, env.GoogleAPIKey, "https://places.googleapis.com")
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -26,9 +26,9 @@ func (env *APIEnv) GetPlaceIdsHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(results)
 }
 
-func getPlaceIds(name string, apiKey string) ([]models.SearchResultItem, error) {
+func getPlaceIds(name string, apiKey string, baseUrl string) ([]models.SearchResultItem, error) {
 	client := &http.Client{}
-	searchURL := "https://places.googleapis.com/v1/places:searchText"
+	searchURL := fmt.Sprintf("%s/v1/places:searchText", baseUrl)
 
 	reqBody, _ := json.Marshal(models.PlaceSearchRequest{TextQuery: name, LanguageCode: "en"})
 	req, err := http.NewRequest("POST", searchURL, bytes.NewBuffer(reqBody))
