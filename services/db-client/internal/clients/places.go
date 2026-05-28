@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"time"
 )
 
 type PlacesClient struct {
@@ -22,18 +23,24 @@ type PlaceSearchResult struct {
 	Address string `json:"address"`
 }
 
+type OpeningHours struct {
+	DayOfWeek int       `json:"day"`
+	OpenTime  time.Time `json:"open"`
+	CloseTime time.Time `json:"close"`
+}
+
 type PlaceInfo struct {
-	PlaceID      string   `json:"place_id"`
-	Name         string   `json:"name"`
-	Street       string   `json:"street"`
-	Area         string   `json:"area"`
-	City         string   `json:"city"`
-	Country      string   `json:"country"`
-	Zip          string   `json:"zip"`
-	Lat          float64  `json:"lat"`
-	Lng          float64  `json:"lng"`
-	Rating       float64  `json:"rating"`
-	OpeningHours []string `json:"opening_hours"`
+	PlaceID      string         `json:"place_id"`
+	Name         string         `json:"name"`
+	Street       string         `json:"street"`
+	Area         string         `json:"area"`
+	City         string         `json:"city"`
+	Country      string         `json:"country"`
+	Zip          string         `json:"zip"`
+	Lat          float64        `json:"lat"`
+	Lng          float64        `json:"lng"`
+	Rating       float64        `json:"rating"`
+	OpeningHours []OpeningHours `json:"opening_hours"`
 }
 
 func (c *PlacesClient) FindPlace(query string) ([]PlaceSearchResult, error) {

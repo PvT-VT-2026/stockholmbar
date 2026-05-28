@@ -8,9 +8,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
-	"strings"
-	"time"
-	"unicode"
 
 	"github.com/google/uuid"
 )
@@ -159,97 +156,24 @@ func (s *SubmissionService) enrichWithBusinessHours(ctx context.Context, venueID
 	if err != nil {
 		return err
 	}
-	if len(placeInfo.OpeningHours) == 0 {
-		return fmt.Errorf("no opening hours returned for place %s", results[0].ID)
-	}
-
-	hours := parseOpeningHours(placeInfo.OpeningHours)
+	hours := convertOpeningHours(placeInfo.OpeningHours)
 	if len(hours) == 0 {
-		return fmt.Errorf("failed to parse opening hours for place %s, raw strings: %v", results[0].ID, placeInfo.OpeningHours)
+		return fmt.Errorf("no opening hours returned for place %s", results[0].ID)
 	}
 
 	return s.venueStore.CreateBusinessHours(ctx, venueID, hours)
 }
 
-var dayNameToWeekday = map[string]int16{
-	"Monday":    1,
-	"Tuesday":   2,
-	"Wednesday": 3,
-	"Thursday":  4,
-	"Friday":    5,
-	"Saturday":  6,
-	"Sunday":    0,
-	"Måndag":    1,
-	"Tisdag":    2,
-	"Onsdag":    3,
-	"Torsdag":   4,
-	"Fredag":    5,
-	"Lördag":    6,
-	"Söndag":    0,
-}
-
-func parseOpeningHours(descriptions []string) []models.BusinessHours {
+func convertOpeningHours(openingHours []clients.OpeningHours) []models.BusinessHours {
 	var hours []models.BusinessHours
-	for _, desc := range descriptions {
-		desc = strings.Map(func(r rune) rune {
-			if unicode.IsSpace(r) {
-				return ' '
-			}
-			return r
-		}, desc)
-		parts := strings.SplitN(desc, ": ", 2)
-		if len(parts) != 2 {
-			log.Printf("parseOpeningHours: no ': ' separator in %q", desc)
-			continue
-		}
-		dayOfWeek, ok := dayNameToWeekday[parts[0]]
-		if !ok {
-			log.Printf("parseOpeningHours: unrecognized day name %q in %q", parts[0], desc)
-			continue
-		}
-
-		h := models.BusinessHours{DayOfWeek: dayOfWeek}
-		timeRange := parts[1]
-
-		switch timeRange {
-		case "Closed":
-			h.IsClosed = true
-		case "Open 24 hours":
-			open, close := "00:00", "23:59"
-			h.OpenTime = &open
-			h.CloseTime = &close
-		default:
-			// en dash (U+2013) is the separator Google Places uses
-			timeParts := strings.SplitN(timeRange, "–", 2)
-			if len(timeParts) != 2 {
-				log.Printf("parseOpeningHours: no en-dash separator in time range %q (bytes: %x)", timeRange, []byte(timeRange))
-				continue
-			}
-			openTime, err := parseTime(strings.TrimSpace(timeParts[0]))
-			if err != nil {
-				log.Printf("parseOpeningHours: open time parse error in %q: %v", desc, err)
-				continue
-			}
-			closeTime, err := parseTime(strings.TrimSpace(timeParts[1]))
-			if err != nil {
-				log.Printf("parseOpeningHours: close time parse error in %q: %v", desc, err)
-				continue
-			}
-			h.OpenTime = &openTime
-			h.CloseTime = &closeTime
-		}
-
-		hours = append(hours, h)
+	for _, h := range openingHours {
+		open := h.OpenTime.Format("15:04")
+		close := h.CloseTime.Format("15:04")
+		hours = append(hours, models.BusinessHours{
+			DayOfWeek: int16(h.DayOfWeek),
+			OpenTime:  &open,
+			CloseTime: &close,
+		})
 	}
 	return hours
-}
-
-func parseTime(s string) (string, error) {
-	if t, err := time.Parse("3:04 PM", s); err == nil {
-		return t.Format("15:04"), nil
-	}
-	if t, err := time.Parse("15:04", s); err == nil {
-		return t.Format("15:04"), nil
-	}
-	return "", fmt.Errorf("unrecognized time format: %q", s)
 }
