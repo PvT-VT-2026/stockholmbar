@@ -91,6 +91,19 @@ func (h *VenueHandler) GetMenu(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(resp)
 }
 
+// SearchAll returns every non-deleted venue. An optional ?q= query filters by name.
+func (h *VenueHandler) SearchAll(w http.ResponseWriter, r *http.Request) {
+	q := r.URL.Query().Get("q")
+	items, err := h.store.SearchAll(r.Context(), q)
+	if err != nil {
+		log.Printf("VenueHandler.SearchAll: %v", err)
+		http.Error(w, "internal server error", http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(models.VenueSearchResponse{Venues: items})
+}
+
 // Update applies a partial update to a venue's name and/or location.
 func (h *VenueHandler) Update(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")

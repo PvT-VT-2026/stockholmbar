@@ -320,6 +320,53 @@ func (s *VenueStore) List(ctx context.Context, filter VenueListFilter) (*models.
 
 
 
+// SearchAll returns every non-deleted venue with its basic location data.
+// An optional name query (case-insensitive) filters the results.
+func (s *VenueStore) SearchAll(ctx context.Context, query string) ([]models.VenueSearchItem, error) {
+	var (
+		rows pgx.Rows
+		err  error
+	)
+	if query == "" {
+		rows, err = s.pool.Query(ctx, `
+			SELECT v.id, v.name,
+			       COALESCE(l.street, ''),
+			       COALESCE(l.area,   ''),
+			       COALESCE(l.city,   '')
+			FROM venue v
+			JOIN location l ON l.id = v.location_id
+			WHERE v.deleted_at IS NULL
+			ORDER BY v.name
+		`)
+	} else {
+		rows, err = s.pool.Query(ctx, `
+			SELECT v.id, v.name,
+			       COALESCE(l.street, ''),
+			       COALESCE(l.area,   ''),
+			       COALESCE(l.city,   '')
+			FROM venue v
+			JOIN location l ON l.id = v.location_id
+			WHERE v.deleted_at IS NULL
+			  AND v.name ILIKE '%' || $1 || '%'
+			ORDER BY v.name
+		`, query)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("VenueStore.SearchAll: %w", err)
+	}
+	defer rows.Close()
+
+	items := []models.VenueSearchItem{}
+	for rows.Next() {
+		var item models.VenueSearchItem
+		if err := rows.Scan(&item.ID, &item.Name, &item.Street, &item.Area, &item.City); err != nil {
+			return nil, fmt.Errorf("VenueStore.SearchAll scan: %w", err)
+		}
+		items = append(items, item)
+	}
+	return items, rows.Err()
+}
+
 // Update applies partial updates to a venue's name and/or location fields.
 func (s *VenueStore) Update(ctx context.Context, venueID uuid.UUID, input models.UpdateVenueInput) error {
 	tx, err := s.pool.BeginTx(ctx, pgx.TxOptions{})

@@ -106,6 +106,19 @@ type BeverageListResponse struct {
     Beverages   []BeverageWithCategory  `json:"beverages"`
 }
 
+// Returned by GET /database/venues/search — lightweight list of all venues.
+type VenueSearchItem struct {
+    ID     string `json:"id"`
+    Name   string `json:"name"`
+    Street string `json:"street"`
+    Area   string `json:"area"`
+    City   string `json:"city"`
+}
+
+type VenueSearchResponse struct {
+    Venues []VenueSearchItem `json:"venues"`
+}
+
 type BeverageWithCategory struct {
     Name        string `json:"name"`
     Category    string `json:"category"`
