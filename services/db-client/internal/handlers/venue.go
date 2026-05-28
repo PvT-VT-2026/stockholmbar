@@ -115,19 +115,16 @@ func (h *VenueHandler) List(w http.ResponseWriter, r *http.Request) {
         filter.MaxPrice = &price
     }
 
-    // Time is the only required parameter, the default in the client should be the current time
+    // time is optional; omitting it returns all venues scheduled for today
     timeString := r.URL.Query().Get("time") // hh:mm format, ex 21:30, 09:50
-    if timeString == "" {
-        http.Error(w, "time parameter missing", http.StatusBadRequest)
-        return
+    if timeString != "" {
+        t, err := time.Parse("15:04", timeString)
+        if err != nil {
+            http.Error(w, "invalid time format", http.StatusBadRequest)
+            return
+        }
+        filter.Time = &t
     }
-    
-    t, err := time.Parse("15:04", timeString)
-    if err != nil {
-        http.Error(w, "invalid time format", http.StatusBadRequest)
-        return
-    }
-    filter.Time = t
     
     onlyHappyHourString := r.URL.Query().Get("happy_hour")
     if onlyHappyHourString != "" {
