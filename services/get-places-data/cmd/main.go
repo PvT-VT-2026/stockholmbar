@@ -19,10 +19,9 @@ func main() {
 		GoogleAPIKey: apiKey,
 	}
 
-    // Default to 8080
 	port := os.Getenv("PORT")
     if port == "" {
-        port = "8080"
+        port = "8082"
     }
 
     // Bind handlers
