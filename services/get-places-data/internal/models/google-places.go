@@ -1,6 +1,5 @@
 package models
 
-import "time"
 
 
 type PlaceSearchRequest struct {
@@ -25,9 +24,11 @@ type SearchResultItem struct {
 }
 
 type OpeningHours struct {
-    DayOfWeek int       `json:"day"`
-    OpenTime  time.Time `json:"open"`
-    CloseTime time.Time `json:"close"`
+    DayOfWeek   int `json:"day"`
+    OpenHour    int `json:"open_hour"`
+    OpenMinute  int `json:"open_minute"`
+    CloseHour   int `json:"close_hour"`
+    CloseMinute int `json:"close_minute"`
 }
 
 type PlaceDetailsResponse struct {

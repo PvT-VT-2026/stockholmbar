@@ -164,16 +164,31 @@ func (s *SubmissionService) enrichWithBusinessHours(ctx context.Context, venueID
 	return s.venueStore.CreateBusinessHours(ctx, venueID, hours)
 }
 
+// convertOpeningHours converts Google Places periods into exactly 7 BusinessHours rows
+// (one per day, Sun=0 … Sat=6). Days with no period are marked is_closed = true.
 func convertOpeningHours(openingHours []clients.OpeningHours) []models.BusinessHours {
-	var hours []models.BusinessHours
+	periodsMap := make(map[int]clients.OpeningHours, len(openingHours))
 	for _, h := range openingHours {
-		open := h.OpenTime.Format("15:04")
-		close := h.CloseTime.Format("15:04")
-		hours = append(hours, models.BusinessHours{
-			DayOfWeek: int16(h.DayOfWeek),
-			OpenTime:  &open,
-			CloseTime: &close,
-		})
+		periodsMap[h.DayOfWeek] = h
+	}
+
+	hours := make([]models.BusinessHours, 0, 7)
+	for day := 0; day < 7; day++ {
+		if h, ok := periodsMap[day]; ok {
+			open := fmt.Sprintf("%02d:%02d", h.OpenHour, h.OpenMinute)
+			close := fmt.Sprintf("%02d:%02d", h.CloseHour, h.CloseMinute)
+			hours = append(hours, models.BusinessHours{
+				DayOfWeek: int16(day),
+				OpenTime:  &open,
+				CloseTime: &close,
+				IsClosed:  false,
+			})
+		} else {
+			hours = append(hours, models.BusinessHours{
+				DayOfWeek: int16(day),
+				IsClosed:  true,
+			})
+		}
 	}
 	return hours
 }

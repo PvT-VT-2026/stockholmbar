@@ -6,7 +6,6 @@ import (
 	"get-places-data/internal/models"
 	"io"
 	"net/http"
-	"time"
 )
 
 func (env *APIEnv) GetPlaceInfoHandler(w http.ResponseWriter, r *http.Request) {
@@ -61,29 +60,14 @@ func formatPlaceInfo(details models.PlaceDetailsResponse, placeID string) *model
 	var OpeningHoursList []models.OpeningHours // Assuming this is your slice
 
 	for _, p := range details.RegularOpeningHours.Periods {
-		openStr := fmt.Sprintf("%02d:%02d", p.Open.Hour, p.Open.Minute)
-		closeStr := fmt.Sprintf("%02d:%02d", p.Close.Hour, p.Close.Minute)
-		
-		openTime, err := time.Parse("15:04", openStr)
-		if err != nil {
-			fmt.Printf("error parsing open time: %v\n", err)
-			continue
-		}
-		
-		closeTime, err := time.Parse("15:04", closeStr)
-		if err != nil {
-			fmt.Printf("error parsing close time: %v\n", err)
-        	continue
-    }
-    	hourEntry := models.OpeningHours{
-        DayOfWeek: p.Open.Day,
-        OpenTime:  openTime,
-        CloseTime: closeTime,
-    }
-    
-    // 4. Append to your list
-    OpeningHoursList = append(OpeningHoursList, hourEntry)
-}
+		OpeningHoursList = append(OpeningHoursList, models.OpeningHours{
+			DayOfWeek:   p.Open.Day,
+			OpenHour:    p.Open.Hour,
+			OpenMinute:  p.Open.Minute,
+			CloseHour:   p.Close.Hour,
+			CloseMinute: p.Close.Minute,
+		})
+	}
 
 	placeInfo := &models.PlaceInfo{
 		PlaceID:      placeID,
