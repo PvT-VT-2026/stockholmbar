@@ -68,6 +68,7 @@ func main() {
 	venueHandler := handlers.NewVenueHandler(venueStore)
 	submissionHandler := handlers.NewSubmissionHandler(submissionService)
 	beverageHandler := handlers.NewBeverageHandler(beverageStore)
+	placesHandler := handlers.NewPlacesHandler(placesClient)
 	// Unit handler no longer has any methods after moving insertion logic to the submission service.
 	// Will implement some getter methods, like fetching every unit for a specific venue id etc.
 	// unitHandler := handlers.NewUnitHandler(unitStore)
@@ -94,6 +95,10 @@ func main() {
 	adminMW := middleware.RequireAdmin(pool)
 	r.Get("/health", healthHandler.Health)
 
+	r.Route("/places", func(r chi.Router) {
+		r.Get("/search", placesHandler.Search)
+		r.Get("/info", placesHandler.Info)
+	})
 
 	r.Route("/submission", func(r chi.Router) {
 		r.With(authMW).Post("/create", submissionHandler.CreateSubmission)
