@@ -85,7 +85,7 @@ func main() {
 	r.Use(cors.AllowAll().Handler)
 	r.Use(cors.Handler(cors.Options{
 		AllowedOrigins: []string{"*"},
-		AllowedMethods: []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowedMethods: []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
 		AllowedHeaders: []string{"Accept", "Authorization", "Content-Type"},
 	}))
 	r.Use(middleware.RequestLogger)
@@ -125,6 +125,13 @@ func main() {
 			r.Get("/list", submissionHandler.ListSubmissions)
 			r.Post("/{id}/accept", submissionHandler.Accept)
 			r.Post("/{id}/reject", submissionHandler.Reject)
+		})
+
+		r.Route("/venues", func(r chi.Router) {
+			r.Patch("/{id}", venueHandler.Update)
+			r.Delete("/{id}", venueHandler.Delete)
+			r.Patch("/{id}/menu/{unitId}", venueHandler.UpdateMenuItem)
+			r.Delete("/{id}/menu/{unitId}", venueHandler.DeleteMenuItem)
 		})
 	})
 

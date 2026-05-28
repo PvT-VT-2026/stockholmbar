@@ -10,87 +10,100 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
 )
 
 var (
-    groqURL    = "https://api.groq.com/openai/v1/chat/completions"
-    httpClient = http.DefaultClient
+	groqURL    = "https://api.groq.com/openai/v1/chat/completions"
+	httpClient = http.DefaultClient
 )
 
-// This http handler expects an image payload. Reads the image data and returns json.
+// HandleConvertImageToJSON accepts either:
+//   - application/json body: {"url": "https://..."} — image URL passed directly to Groq
+//   - any other content-type: raw image bytes (legacy behaviour)
 func HandleConvertImageToJSON(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
-	
-	// Limit the amount of data that can be read to ~80MB
-	// Regular images are between 2-5MB, while some high resolution cameras take images 
-	// upward of 75MB. Any more than that should be considered a bad request.
-	r.Body = http.MaxBytesReader(w, r.Body, 80<<20)
 
+	// Limit body to ~80MB (covers 2-5MB images + up to 75MB high-res).
+	r.Body = http.MaxBytesReader(w, r.Body, 80<<20)
 
 	if r.Method != http.MethodPost {
 		http.Error(w, "Invalid http method", http.StatusBadRequest)
 		return
 	}
 
-	data, err := io.ReadAll(r.Body)
-    if err != nil {
-		fmt.Printf("Failed to read request body: %s\n", err.Error())
-		http.Error(w, "Bad payload", http.StatusBadRequest)
-        return
-    }
+	var imageURL string
 
-	json, err := getJsonFromMenuImage(data)
+	if strings.HasPrefix(r.Header.Get("Content-Type"), "application/json") {
+		var body struct {
+			URL string `json:"url"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil || body.URL == "" {
+			http.Error(w, `invalid JSON body: expected {"url": "..."}`, http.StatusBadRequest)
+			return
+		}
+		imageURL = body.URL
+	} else {
+		data, err := io.ReadAll(r.Body)
+		if err != nil {
+			fmt.Printf("Failed to read request body: %s\n", err.Error())
+			http.Error(w, "Bad payload", http.StatusBadRequest)
+			return
+		}
+		imageURL = "data:image/png;base64," + base64.StdEncoding.EncodeToString(data)
+	}
+
+	result, err := getJsonFromMenuImageURL(imageURL)
 	if err != nil {
 		fmt.Printf("Failed to generate json from image: %s\n", err.Error())
 		http.Error(w, "Unexpected error", http.StatusInternalServerError)
 		return
 	}
 
-	w.Write([]byte(json))
+	w.Write([]byte(result))
 }
 
-// getJsonFromMenuImage calls the groq api and validates the response before returning it.
-func getJsonFromMenuImage(imageData []byte) (string, error) {
-	req, err := generateRequest(imageData)	
-	if err != nil{
-		return "", fmt.Errorf("Unable to create request: %s", err.Error())
+// getJsonFromMenuImageURL calls the Groq API with an image URL (either an https:// URL or a
+// data:image/...;base64,... data URL) and returns the parsed menu JSON string.
+func getJsonFromMenuImageURL(imageURL string) (string, error) {
+	req, err := generateRequest(imageURL)
+	if err != nil {
+		return "", fmt.Errorf("unable to create request: %w", err)
 	}
 
 	fmt.Println("Executing request")
 	resp, err := httpClient.Do(req)
 	if err != nil {
-		return "", fmt.Errorf("Failed to execute request: %s", err.Error())
+		return "", fmt.Errorf("failed to execute request: %w", err)
 	}
 	defer resp.Body.Close()
 
+	fmt.Println("Groq responded with status " + resp.Status)
 
-	fmt.Println("Grok responded with status " + resp.Status)
-
-	fmt.Println("Reading response data")
 	data, err := io.ReadAll(resp.Body)
 	if err != nil {
-		panic(err)
+		return "", fmt.Errorf("failed to read Groq response: %w", err)
 	}
 
 	if !json.Valid(data) {
-		log.Println("Invalid JSON response:")
-		fmt.Println(string(data))
+		log.Println("Invalid JSON response from Groq:", string(data))
 		return "", fmt.Errorf("invalid JSON from API")
 	}
 
 	var result models.Response
 	if err := json.Unmarshal(data, &result); err != nil {
-		log.Fatal(err)
+		return "", fmt.Errorf("failed to unmarshal Groq response: %w", err)
 	}
-	
-	return fmt.Sprint(result.Choices[0].Message.Content), nil
+	if len(result.Choices) == 0 {
+		return "", fmt.Errorf("no choices in Groq response")
+	}
+
+	return result.Choices[0].Message.Content, nil
 }
 
-
-// generateRequest takes the raw image byte data and returns a ready to execute groq api request.
-func generateRequest(imageData []byte) (*http.Request, error) {
-	dataURL := "data:image/png;base64," + base64.StdEncoding.EncodeToString(imageData)
-
+// generateRequest builds a Groq chat-completions request using the given image URL.
+// imageURL can be an https:// URL or a data:image/...;base64,... data URL.
+func generateRequest(imageURL string) (*http.Request, error) {
 	reqBody := models.ChatRequest{
 		Model: "meta-llama/llama-4-scout-17b-16e-instruct",
 		Messages: []models.Message{
@@ -98,14 +111,14 @@ func generateRequest(imageData []byte) (*http.Request, error) {
 				Role: "system",
 				Content: `You are a menu parser. Extract all items from the menu image and return them as JSON.
 				Return only valid JSON, no markdown, no explanation. Extract only alcoholic beverages, ignore soft drinks and food items.
-				Output format should be a list of items such as {"drink": "Carlsberg", "abv": 5, "type": "beer", "price": 89, "currency": "sek", "size": "", "volume_ml": 500, tap": true}.
+				Output format should be a list of items such as {"drink": "Carlsberg", "abv": 5, "type": "beer", "price": 89, "currency": "sek", "size": "", "volume_ml": 500, "tap": true}.
 				Tap should be false by default, unless stated otherwise in the image.
-				You may assume currency is sek, unless stated otherwise. 
+				You may assume currency is sek, unless stated otherwise.
 				Abv may be NULL.
 				Volume may be empty. If volume is stated in the menu, be sure to translate it to ml. For example, "Carlsberg 50cl", would have "volume_ml":500.
-				If a drink is available in different sizes, such as glass/bottle for wine, they should be listed as two entries, such as: 
+				If a drink is available in different sizes, such as glass/bottle for wine, they should be listed as two entries, such as:
 				[{"drink": "Proverb Pinot Grigio", "abv": 5, "type": "red wine", "price": 60, "currency": "sek", "size": "glass","volume_ml":null, "tap": false}, {"drink": "Proverb Pinot Grigio", "type": "red wine", "price": 350, "size": "bottle", "tap": false}].
-				Be sure to look at the whole image, and include all types of drinks (beers, wines, spritits, liqours)`,
+				Be sure to look at the whole image, and include all types of drinks (beers, wines, spirits, liquors)`,
 			},
 			{
 				Role: "user",
@@ -113,14 +126,14 @@ func generateRequest(imageData []byte) (*http.Request, error) {
 					{
 						"type": "image_url",
 						"image_url": map[string]string{
-							"url": dataURL,
+							"url": imageURL,
 						},
 					},
 				},
 			},
 		},
 		Temperature:         1,
-		MaxCompletionTokens: 5000, // Arbitrary max limit, could be higher	
+		MaxCompletionTokens: 5000,
 		TopP:                1,
 	}
 
@@ -134,10 +147,8 @@ func generateRequest(imageData []byte) (*http.Request, error) {
 		return nil, err
 	}
 
-	fmt.Println("Setting request headers")
 	req.Header.Set("Authorization", "Bearer "+os.Getenv("GROQ_API_KEY"))
 	req.Header.Set("Content-Type", "application/json")
 
 	return req, nil
 }
-

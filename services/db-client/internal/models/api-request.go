@@ -40,3 +40,27 @@ type UnitInput struct {
     Currency   string  `json:"currency"`
     ABV        float32  `json:"abv"`
 }
+
+// Partial update for a venue's name and location fields.
+// Only non-nil fields are applied.
+type UpdateVenueInput struct {
+    Name    *string `json:"name"`
+    Street  *string `json:"street"`
+    Area    *string `json:"area"`
+    City    *string `json:"city"`
+    Zip     *string `json:"zip"`
+    Country *string `json:"country"`
+}
+
+// Partial update for a venue_unit (menu item).
+// Only non-nil fields are applied.
+// Amount triggers a new price_record row (time-series history).
+type UpdateMenuItemInput struct {
+    BeverageName *string  `json:"beverage_name"`
+    UnitName     *string  `json:"unit_name"`
+    UnitType     *string  `json:"unit_type"`
+    VolumeMl     *int     `json:"volume_ml"`
+    ABV          *float64 `json:"abv"`
+    Amount       *float64 `json:"amount"`
+    Currency     *string  `json:"currency"`
+}

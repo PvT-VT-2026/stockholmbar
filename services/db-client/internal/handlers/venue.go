@@ -4,6 +4,7 @@ import (
 	"db-client/internal/models"
 	"db-client/internal/stores"
 	"encoding/json"
+	"errors"
 	"log"
 	"net/http"
 	"strconv"
@@ -88,6 +89,114 @@ func (h *VenueHandler) GetMenu(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(resp)
+}
+
+// Update applies a partial update to a venue's name and/or location.
+func (h *VenueHandler) Update(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	venueID, err := uuid.Parse(id)
+	if err != nil {
+		http.Error(w, "invalid id", http.StatusBadRequest)
+		return
+	}
+
+	var input models.UpdateVenueInput
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+		http.Error(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	if err := h.store.Update(r.Context(), venueID, input); err != nil {
+		if errors.Is(err, stores.ErrNotFound) {
+			http.Error(w, "not found", http.StatusNotFound)
+			return
+		}
+		log.Printf("VenueHandler.Update: %v", err)
+		http.Error(w, "internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// Delete soft-deletes a venue.
+func (h *VenueHandler) Delete(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	venueID, err := uuid.Parse(id)
+	if err != nil {
+		http.Error(w, "invalid id", http.StatusBadRequest)
+		return
+	}
+
+	if err := h.store.Delete(r.Context(), venueID); err != nil {
+		if errors.Is(err, stores.ErrNotFound) {
+			http.Error(w, "not found", http.StatusNotFound)
+			return
+		}
+		log.Printf("VenueHandler.Delete: %v", err)
+		http.Error(w, "internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// UpdateMenuItem applies a partial update to a menu item (venue_unit).
+func (h *VenueHandler) UpdateMenuItem(w http.ResponseWriter, r *http.Request) {
+	venueID, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		http.Error(w, "invalid venue id", http.StatusBadRequest)
+		return
+	}
+	venueUnitID, err := uuid.Parse(chi.URLParam(r, "unitId"))
+	if err != nil {
+		http.Error(w, "invalid unit id", http.StatusBadRequest)
+		return
+	}
+
+	var input models.UpdateMenuItemInput
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+		http.Error(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	if err := h.store.UpdateMenuItem(r.Context(), venueID, venueUnitID, input); err != nil {
+		if errors.Is(err, stores.ErrNotFound) {
+			http.Error(w, "not found", http.StatusNotFound)
+			return
+		}
+		log.Printf("VenueHandler.UpdateMenuItem: %v", err)
+		http.Error(w, "internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// DeleteMenuItem soft-deletes a single venue_unit (menu item).
+func (h *VenueHandler) DeleteMenuItem(w http.ResponseWriter, r *http.Request) {
+	venueID, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		http.Error(w, "invalid venue id", http.StatusBadRequest)
+		return
+	}
+	venueUnitID, err := uuid.Parse(chi.URLParam(r, "unitId"))
+	if err != nil {
+		http.Error(w, "invalid unit id", http.StatusBadRequest)
+		return
+	}
+
+	if err := h.store.DeleteMenuItem(r.Context(), venueID, venueUnitID); err != nil {
+		if errors.Is(err, stores.ErrNotFound) {
+			http.Error(w, "not found", http.StatusNotFound)
+			return
+		}
+		log.Printf("VenueHandler.DeleteMenuItem: %v", err)
+		http.Error(w, "internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
 }
 
 // Builds a filter object based on query parameters and hands it to the venueStore, which

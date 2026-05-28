@@ -14,6 +14,9 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
+// ErrNotFound is returned when a requested resource does not exist.
+var ErrNotFound = errors.New("not found")
+
 type VenueStore struct {
 	pool *pgxpool.Pool
 }
@@ -316,6 +319,187 @@ func (s *VenueStore) List(ctx context.Context, filter VenueListFilter) (*models.
 }
 
 
+
+// Update applies partial updates to a venue's name and/or location fields.
+func (s *VenueStore) Update(ctx context.Context, venueID uuid.UUID, input models.UpdateVenueInput) error {
+	tx, err := s.pool.BeginTx(ctx, pgx.TxOptions{})
+	if err != nil {
+		return fmt.Errorf("VenueStore.Update: begin tx: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
+	if input.Name != nil {
+		tag, err := tx.Exec(ctx,
+			`UPDATE venue SET name = $1 WHERE id = $2 AND deleted_at IS NULL`,
+			*input.Name, venueID,
+		)
+		if err != nil {
+			return fmt.Errorf("VenueStore.Update: update name: %w", err)
+		}
+		if tag.RowsAffected() == 0 {
+			return ErrNotFound
+		}
+	}
+
+	locFields := []string{}
+	locArgs := []any{}
+	idx := 1
+	for _, f := range []struct {
+		val *string
+		col string
+	}{
+		{input.Street, "street"},
+		{input.Area, "area"},
+		{input.City, "city"},
+		{input.Zip, "zip"},
+		{input.Country, "country"},
+	} {
+		if f.val != nil {
+			locFields = append(locFields, fmt.Sprintf("%s = $%d", f.col, idx))
+			locArgs = append(locArgs, *f.val)
+			idx++
+		}
+	}
+	if len(locFields) > 0 {
+		locArgs = append(locArgs, venueID)
+		q := fmt.Sprintf(
+			`UPDATE location SET %s FROM venue WHERE location.id = venue.location_id AND venue.id = $%d AND venue.deleted_at IS NULL`,
+			strings.Join(locFields, ", "), idx,
+		)
+		if _, err := tx.Exec(ctx, q, locArgs...); err != nil {
+			return fmt.Errorf("VenueStore.Update: update location: %w", err)
+		}
+	}
+
+	return tx.Commit(ctx)
+}
+
+// Delete soft-deletes a venue by setting deleted_at.
+func (s *VenueStore) Delete(ctx context.Context, venueID uuid.UUID) error {
+	tag, err := s.pool.Exec(ctx,
+		`UPDATE venue SET deleted_at = NOW() WHERE id = $1 AND deleted_at IS NULL`,
+		venueID,
+	)
+	if err != nil {
+		return fmt.Errorf("VenueStore.Delete: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return ErrNotFound
+	}
+	return nil
+}
+
+// UpdateMenuItem applies partial updates to a venue_unit's unit, beverage, and price data.
+func (s *VenueStore) UpdateMenuItem(ctx context.Context, venueID, venueUnitID uuid.UUID, input models.UpdateMenuItemInput) error {
+	tx, err := s.pool.BeginTx(ctx, pgx.TxOptions{})
+	if err != nil {
+		return fmt.Errorf("VenueStore.UpdateMenuItem: begin tx: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
+	// Resolve unit_id and beverage_id, validating ownership.
+	var unitID, beverageID uuid.UUID
+	err = tx.QueryRow(ctx, `
+		SELECT u.id, u.beverage_id
+		FROM venue_unit vu
+		JOIN unit u ON u.id = vu.unit_id AND u.deleted_at IS NULL
+		WHERE vu.id = $1 AND vu.venue_id = $2 AND vu.deleted_at IS NULL
+	`, venueUnitID, venueID).Scan(&unitID, &beverageID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return ErrNotFound
+	}
+	if err != nil {
+		return fmt.Errorf("VenueStore.UpdateMenuItem: resolve ids: %w", err)
+	}
+
+	// Update unit fields.
+	unitFields := []string{}
+	unitArgs := []any{}
+	idx := 1
+	for _, f := range []struct {
+		val any
+		col string
+	}{
+		{input.UnitName, "name"},
+		{input.UnitType, "unit_type"},
+		{input.VolumeMl, "volume_ml"},
+	} {
+		if f.val != nil {
+			unitFields = append(unitFields, fmt.Sprintf("%s = $%d", f.col, idx))
+			unitArgs = append(unitArgs, f.val)
+			idx++
+		}
+	}
+	if len(unitFields) > 0 {
+		unitArgs = append(unitArgs, unitID)
+		q := fmt.Sprintf(
+			`UPDATE unit SET %s WHERE id = $%d AND deleted_at IS NULL`,
+			strings.Join(unitFields, ", "), idx,
+		)
+		if _, err := tx.Exec(ctx, q, unitArgs...); err != nil {
+			return fmt.Errorf("VenueStore.UpdateMenuItem: update unit: %w", err)
+		}
+	}
+
+	// Update beverage fields.
+	bevFields := []string{}
+	bevArgs := []any{}
+	idx = 1
+	for _, f := range []struct {
+		val any
+		col string
+	}{
+		{input.BeverageName, "name"},
+		{input.ABV, "abv"},
+	} {
+		if f.val != nil {
+			bevFields = append(bevFields, fmt.Sprintf("%s = $%d", f.col, idx))
+			bevArgs = append(bevArgs, f.val)
+			idx++
+		}
+	}
+	if len(bevFields) > 0 {
+		bevArgs = append(bevArgs, beverageID)
+		q := fmt.Sprintf(
+			`UPDATE beverage SET %s WHERE id = $%d AND deleted_at IS NULL`,
+			strings.Join(bevFields, ", "), idx,
+		)
+		if _, err := tx.Exec(ctx, q, bevArgs...); err != nil {
+			return fmt.Errorf("VenueStore.UpdateMenuItem: update beverage: %w", err)
+		}
+	}
+
+	// Insert new price record when amount is provided (time-series — never mutate existing rows).
+	if input.Amount != nil {
+		currency := "kr"
+		if input.Currency != nil {
+			currency = *input.Currency
+		}
+		if _, err := tx.Exec(ctx,
+			`INSERT INTO price_record (venue_unit_id, currency, amount) VALUES ($1, $2, $3)`,
+			venueUnitID, currency, *input.Amount,
+		); err != nil {
+			return fmt.Errorf("VenueStore.UpdateMenuItem: insert price_record: %w", err)
+		}
+	}
+
+	return tx.Commit(ctx)
+}
+
+// DeleteMenuItem soft-deletes a single venue_unit row.
+func (s *VenueStore) DeleteMenuItem(ctx context.Context, venueID, venueUnitID uuid.UUID) error {
+	tag, err := s.pool.Exec(ctx,
+		`UPDATE venue_unit SET deleted_at = NOW() WHERE id = $1 AND venue_id = $2 AND deleted_at IS NULL`,
+		venueUnitID, venueID,
+	)
+	if err != nil {
+		return fmt.Errorf("VenueStore.DeleteMenuItem: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return ErrNotFound
+	}
+	return nil
+}
 
 func createFilterVenuesResponse(rows pgx.Rows) (*models.FilterVenuesResponse, error) {
     // Use a map to deduplicate venues by ID since we DISTINCT ON v.id in SQL,
