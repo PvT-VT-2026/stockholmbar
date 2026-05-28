@@ -25,6 +25,14 @@ type PlaceSearchResult struct {
 type PlaceInfo struct {
 	PlaceID      string   `json:"place_id"`
 	Name         string   `json:"name"`
+	Street       string   `json:"street"`
+	Area         string   `json:"area"`
+	City         string   `json:"city"`
+	Country      string   `json:"country"`
+	Zip          string   `json:"zip"`
+	Lat          float64  `json:"lat"`
+	Lng          float64  `json:"lng"`
+	Rating       float64  `json:"rating"`
 	OpeningHours []string `json:"opening_hours"`
 }
 
