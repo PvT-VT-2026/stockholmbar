@@ -115,6 +115,9 @@ func generateRequest(imageURL string) (*http.Request, error) {
 				Tap should be false by default, unless stated otherwise in the image.
 				You may assume currency is sek, unless stated otherwise.
 				Abv may be NULL.
+				Type should be one of the following values: beer, cider, red wine, white wine, spririt, liqueur, drink, or other.
+				Drink type is reserved for composite drinks, such as red bull vodka, irish coffee, etc. 
+				Do not include anything in parentheses in the drink name. Example: BRISKA PÄRON (CIDER). The drink field should contain only Briska päron.
 				Volume may be empty. If volume is stated in the menu, be sure to translate it to ml. For example, "Carlsberg 50cl", would have "volume_ml":500.
 				If a drink is available in different sizes, such as glass/bottle for wine, they should be listed as two entries, such as:
 				[{"drink": "Proverb Pinot Grigio", "abv": 5, "type": "red wine", "price": 60, "currency": "sek", "size": "glass","volume_ml":null, "tap": false}, {"drink": "Proverb Pinot Grigio", "type": "red wine", "price": 350, "size": "bottle", "tap": false}].
