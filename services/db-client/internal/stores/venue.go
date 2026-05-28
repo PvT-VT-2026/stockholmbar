@@ -175,7 +175,7 @@ type VenueListFilter struct {
     Category *string
     BeverageNames *[]string
     MaxPrice *int
-    Time time.Time
+    Time *time.Time
     OnlyHappyHour bool
 }
 
@@ -185,11 +185,13 @@ func (s *VenueStore) List(ctx context.Context, filter VenueListFilter) (*models.
     // We can choose to go with this convention, or set weekday to 7 if it is 0. 
     // However that would require us to do that every time we deal with days, so it is simpler to allow sunday to be represented as 0.
     weekdayInt := int(time.Now().Weekday())
-    timeOfDay := filter.Time.Format("15:04") 
 
-    // Business hour filter
-    // Only display bars that are open at the given time
-    businessHourFilter := fmt.Sprintf(`
+    var businessHourFilter, happyHourJoin string
+
+    if filter.Time != nil {
+        // Filter to venues open at the given time (existing behaviour)
+        timeOfDay := filter.Time.Format("15:04")
+        businessHourFilter = fmt.Sprintf(`
         JOIN business_hours bh
         ON bh.venue_id = v.id
         AND bh.day_of_week = %d
@@ -197,13 +199,10 @@ func (s *VenueStore) List(ctx context.Context, filter VenueListFilter) (*models.
             (bh.open_time <= '%s'::time AND bh.close_time >= '%s'::time)
         OR
             (bh.open_time > bh.close_time  -- overnight case
-            AND ('%s'::time >= bh.open_time OR '%s'::time <= bh.close_time)))`, 
+            AND ('%s'::time >= bh.open_time OR '%s'::time <= bh.close_time)))`,
             weekdayInt, timeOfDay, timeOfDay, timeOfDay, timeOfDay,
-    )
-
-    // Always LEFT JOIN happy_hours to get the data,
-    // but filter on it only if OnlyHappyHour is set
-    happyHourJoin := fmt.Sprintf(`
+        )
+        happyHourJoin = fmt.Sprintf(`
         LEFT JOIN happy_hours hh
         ON hh.venue_id = v.id
         AND hh.day_of_week = %d
@@ -212,8 +211,25 @@ func (s *VenueStore) List(ctx context.Context, filter VenueListFilter) (*models.
         OR
             (hh.start_time > hh.end_time
             AND ('%s'::time >= hh.start_time OR '%s'::time <= hh.end_time)))`,
-        weekdayInt, timeOfDay, timeOfDay, timeOfDay, timeOfDay,
-    )
+            weekdayInt, timeOfDay, timeOfDay, timeOfDay, timeOfDay,
+        )
+    } else {
+        // No time provided: return all venues scheduled for today (not marked closed)
+        businessHourFilter = fmt.Sprintf(`
+        JOIN business_hours bh
+        ON bh.venue_id = v.id
+        AND bh.day_of_week = %d
+        AND bh.is_closed IS NOT TRUE`,
+            weekdayInt,
+        )
+        happyHourJoin = fmt.Sprintf(`
+        LEFT JOIN happy_hours hh
+        ON hh.venue_id = v.id
+        AND hh.day_of_week = %d
+        AND hh.is_active IS TRUE`,
+            weekdayInt,
+        )
+    }
 
     // base query
     query := fmt.Sprintf(`
