@@ -18,6 +18,7 @@ Each item in the returned list has the following fields:
 Create the docker image with `docker build -t imagetojson .`
 
 Run the container with `docker run --env-file .env -p 8080:8080 imagetojson`
+The service expects the variable GROQ_API_KEY to be present in the env file.
 
 ### Example call
 
