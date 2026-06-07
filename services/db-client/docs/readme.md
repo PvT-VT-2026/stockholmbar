@@ -304,9 +304,5 @@ Create the docker image with `docker build -t db-client .`
 
 Run the container with `docker run --env-file .env -p 8081:8081 db-client`
 
-Requires a .env file with SUPABASE_CONN_STRING, as well as TEST_USER_UUID.
-
+Requires a .env file with SUPABASE_CONN_STRING
 SUPABASE_CONN_STRING is the string used to connect to the remote database.
-
-TEST_USER_UUID a temporary solution to the fact the we don't have a functioning auth middleware yet. Every request to `/submission/create/` must include a userID, or some way to connect the submission to a registered user. Otherwise the frontend will receive an authentication error.
-Instead of looking for an authentication key in the request, the handler now searches for a local enviromnent variable called TEST_USER_UUID. To create your own, go to our project on supabase, go to authentication, and create a user with your email. This will give you a user ID, which you can put in your own local .env.
