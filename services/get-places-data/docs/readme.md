@@ -54,23 +54,26 @@ curl "http://localhost:8082/placeinfo?id=ChIJR0uPnGidX0YRT7RD-y_cayI"
 ```json
 {
   "place_id": "ChIJR0uPnGidX0YRT7RD-y_cayI",
-  "name": "Lion Bar",
-  "street": "Sveavägen  74",
-  "area": "",
+  "name": "The Mocked Pub",
+  "street": "Testgatan 1",
   "city": "Stockholm",
-  "country": "Sweden",
-  "zip": "113 59",
-  "lat": 59.3398946,
-  "lng": 18.0597901,
-  "rating": 3.6,
+  "rating": 4.8,
   "opening_hours": [
-    "Monday: 1:00 PM – 3:00 AM",
-    "Tuesday: 1:00 PM – 3:00 AM",
-    "Wednesday: 1:00 PM – 3:00 AM",
-    "Thursday: 1:00 PM – 3:00 AM",
-    "Friday: 1:00 PM – 3:00 AM",
-    "Saturday: 1:00 PM – 3:00 AM",
-    "Sunday: 1:00 PM – 3:00 AM"
+    {
+      "day": 1,
+      "open": "11:00",
+      "close": "23:00"
+    },
+    {
+      "day": 2,
+      "open": "11:00",
+      "close": "23:00"
+    },
+    {
+      "day": 5,
+      "open": "11:00",
+      "close": "02:00"
+    }
   ]
 }
 ```
